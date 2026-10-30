@@ -12,4 +12,4 @@ test:
 	go test -race ./...
 
 build:
-	go build -o vueling ./cmd/vueling
+	go build ./cmd/vueling
