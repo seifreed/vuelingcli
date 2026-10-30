@@ -1,20 +1,22 @@
 ---
 name: vueling-flights
-description: Open Vueling's public price calendar and build flight-selection links using the vueling CLI.
+description: Search Vueling flights in the browser, open its public price calendar, or build flight-selection links with the vueling CLI.
 ---
 
 # Vueling flights
 
-Use `vueling` to open Vueling's public price calendar or build a flight-selection link.
+Use Vueling's site in the browser for live flight results. Use `vueling` to build the public calendar and flight-selection links.
 
 ## Boundaries
 
 - Read-only: search and inspect offers only. Never book, pay, check in, or change a reservation.
-- The CLI does not retrieve live prices or availability. Ask the user to check these on Vueling's site.
+- The CLI does not retrieve live prices or availability. For a live search, open the official Vueling site in the available browser and report only the results shown there.
+- Use the browser UI or a `vueling link` URL to search. Do not copy session tokens or call undocumented private APIs from the CLI; Vueling's availability request uses a session bearer token and direct CLI requests are blocked.
+- Stop if the site requires a CAPTCHA or login the user has not completed. Never select a fare, book, pay, or change a reservation.
 - Ask for origin, destination, dates, and passenger counts when missing. Do not infer travel dates.
 - Prefer `--json` for programmatic workflows and keep diagnostics on stderr.
 - Do not request or store account passwords or payment details.
 
 ## Commands
 
-`vueling calendar BCN MLA --date tomorrow` builds a public Vueling price-calendar link. `vueling link BCN MLA --date tomorrow` builds a flight-selection link. The link command accepts passenger counts, `--discount`, `--culture`, and `--currency`. For a specific offer it also accepts `--flight VY2115 --fare-basis DOWVYCLB`, and the matching return options `--return tomorrow --return-flight VY5200 --return-fare-basis DOWVYCLB`. `--token` passes Vueling's optional `MET_Token`. Add `--json` or `--toon` for structured output. `vueling airports paris` searches the local catalogue and also accepts `--json` or `--toon`; the catalogue is partial. `vueling search` is unavailable because the official Flight Calendar Prices API requires Vueling access; do not claim the CLI returns live fares.
+`vueling calendar BCN MLA --date tomorrow` builds a public Vueling price-calendar link. `vueling link BCN MLA --date tomorrow` builds a flight-selection link; open it in the browser to see current results. The link command accepts passenger counts, `--discount`, `--culture`, and `--currency`. For a specific offer it also accepts `--flight VY2115 --fare-basis DOWVYCLB`, and the matching return options `--return tomorrow --return-flight VY5200 --return-fare-basis DOWVYCLB`. `--token` passes Vueling's optional `MET_Token`. Add `--json` or `--toon` for structured output. `vueling airports paris` searches the local catalogue and also accepts `--json` or `--toon`; the catalogue is partial. `vueling search` is unavailable; use the site for live fares and do not claim the CLI returned them.
