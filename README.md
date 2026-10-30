@@ -12,7 +12,7 @@ go run ./cmd/vueling version
 go run ./cmd/vueling calendar BCN MLA --date 14/01/2027
 ```
 
-`calendar` builds Vueling's public price-calendar URL. It accepts `YYYY-MM-DD`, `DD/MM/YYYY`, `today`, `tomorrow`, `+N`, or a weekday name in English or Spanish. Use `--json` or `--toon` for structured output. `link` builds the official flight-selection URL from route, date, and passenger options. `airports` searches a local catalogue of common Vueling airports; it is not the full route network. `search` is not available because the official Flight Calendar Prices API requires access from Vueling.
+`calendar` builds Vueling's public price-calendar URL. It accepts `YYYY-MM-DD`, `DD/MM/YYYY`, `today`, `tomorrow`, `+N`, or a weekday name in English or Spanish. Use `--json` or `--toon` for structured output. `link` builds the official flight-selection URL from route, date, and passenger options. It supports `--discount`, `--culture`, `--currency`, `--flight`, `--fare-basis`, `--return-flight`, `--return-fare-basis`, and `--token` for extended links. `airports` searches a local catalogue of Vueling airports; it is not the full route network. `search` is not available because the official Flight Calendar Prices API requires access from Vueling.
 
 ## Skill para agentes
 

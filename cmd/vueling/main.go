@@ -86,7 +86,7 @@ func airportSearch(args []string) error {
 
 func flightLink(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Build a Vueling flight-selection link\n\nUsage:\n  vueling link <origin> <destination> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--json|--toon]\n")
+		fmt.Print("Build a Vueling flight-selection link\n\nUsage:\n  vueling link <origin> <destination> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--json|--toon]\n")
 		return nil
 	}
 	values := map[string]string{}
@@ -111,7 +111,7 @@ func flightLink(args []string) error {
 				v = args[i]
 			}
 			switch k {
-			case "date", "return", "adults", "children", "infants", "discount", "culture", "currency":
+			case "date", "return", "adults", "children", "infants", "discount", "culture", "currency", "flight", "fare-basis", "return-flight", "return-fare-basis", "token":
 				values[k] = v
 			default:
 				return fmt.Errorf("unknown option --%s", k)
@@ -159,7 +159,7 @@ func flightLink(args []string) error {
 	if err != nil {
 		return fmt.Errorf("invalid --discount: %w", err)
 	}
-	link, err := vueling.FlightURL(vueling.LinkOptions{Origin: positional[0], Destination: positional[1], Date: date, ReturnDate: returnDate, Adults: adults, Children: children, Infants: infants, Discount: discount, Culture: values["culture"], Currency: values["currency"]})
+	link, err := vueling.FlightURL(vueling.LinkOptions{Origin: positional[0], Destination: positional[1], Date: date, ReturnDate: returnDate, Adults: adults, Children: children, Infants: infants, Discount: discount, Culture: values["culture"], Currency: values["currency"], OutboundFlight: strings.ToUpper(values["flight"]), OutboundFareBasis: values["fare-basis"], ReturnFlight: strings.ToUpper(values["return-flight"]), ReturnFareBasis: values["return-fare-basis"], METToken: values["token"]})
 	if err != nil {
 		return err
 	}

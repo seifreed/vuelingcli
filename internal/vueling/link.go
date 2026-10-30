@@ -8,17 +8,20 @@ import (
 )
 
 type LinkOptions struct {
-	Origin, Destination string
-	Date, ReturnDate    time.Time
-	Adults, Children    int
-	Infants             int
-	Discount            int
-	Culture, Currency   string
+	Origin, Destination                     string
+	Date, ReturnDate                        time.Time
+	Adults, Children                        int
+	Infants, Discount                       int
+	Culture, Currency                       string
+	OutboundFlight, OutboundFareBasis       string
+	ReturnFlight, ReturnFareBasis, METToken string
 }
 
 // FlightURL builds the documented Vueling flight-selection deep link.
 func FlightURL(o LinkOptions) (string, error) {
 	o.Origin, o.Destination = strings.ToUpper(strings.TrimSpace(o.Origin)), strings.ToUpper(strings.TrimSpace(o.Destination))
+	o.OutboundFlight, o.ReturnFlight = strings.ToUpper(strings.TrimSpace(o.OutboundFlight)), strings.ToUpper(strings.TrimSpace(o.ReturnFlight))
+	o.OutboundFareBasis, o.ReturnFareBasis = strings.ToUpper(strings.TrimSpace(o.OutboundFareBasis)), strings.ToUpper(strings.TrimSpace(o.ReturnFareBasis))
 	if len(o.Origin) != 3 || len(o.Destination) != 3 || o.Origin == o.Destination || o.Date.IsZero() {
 		return "", fmt.Errorf("different IATA codes and a departure date are required")
 	}
@@ -31,11 +34,39 @@ func FlightURL(o LinkOptions) (string, error) {
 	if o.Discount < 0 || o.Discount > 5 {
 		return "", fmt.Errorf("discount must be between 0 and 5")
 	}
+	for name, flight := range map[string]string{"outbound": o.OutboundFlight, "return": o.ReturnFlight} {
+		if flight != "" && !validFlightNumber(flight) {
+			return "", fmt.Errorf("%s flight must use VY followed by 3 or 4 digits", name)
+		}
+	}
+	for name, fare := range map[string]string{"outbound": o.OutboundFareBasis, "return": o.ReturnFareBasis} {
+		if fare != "" && !isAlphaNumeric(fare) {
+			return "", fmt.Errorf("%s fare basis must be alphanumeric", name)
+		}
+	}
+	if o.OutboundFareBasis != "" && o.OutboundFlight == "" {
+		return "", fmt.Errorf("outbound fare basis requires an outbound flight")
+	}
+	if o.ReturnFlight != "" && o.ReturnDate.IsZero() {
+		return "", fmt.Errorf("return flight requires a return date")
+	}
+	if o.ReturnFareBasis != "" && o.ReturnFlight == "" {
+		return "", fmt.Errorf("return fare basis requires a return flight")
+	}
+	if o.METToken != "" && !isAlphaNumeric(o.METToken) {
+		return "", fmt.Errorf("MET token must be alphanumeric")
+	}
 	if o.Culture == "" {
 		o.Culture = "es-ES"
 	}
 	if o.Currency == "" {
 		o.Currency = "EUR"
+	}
+	o.Currency = strings.ToUpper(o.Currency)
+	switch o.Currency {
+	case "EUR", "SEK", "NOK", "DKK", "CHF", "GBP", "USD":
+	default:
+		return "", fmt.Errorf("unsupported currency %q", o.Currency)
 	}
 	q := url.Values{"o": {o.Origin}, "d": {o.Destination}, "dd": {o.Date.Format(time.DateOnly)}, "adt": {fmt.Sprint(o.Adults)}, "c": {o.Culture}, "cur": {o.Currency}}
 	if !o.ReturnDate.IsZero() {
@@ -50,5 +81,34 @@ func FlightURL(o LinkOptions) (string, error) {
 	if o.Discount > 0 {
 		q.Set("dt", fmt.Sprint(o.Discount))
 	}
+	for key, value := range map[string]string{"ofn": o.OutboundFlight, "ofb": o.OutboundFareBasis, "rfn": o.ReturnFlight, "rfb": o.ReturnFareBasis, "MET_Token": o.METToken} {
+		if value != "" {
+			q.Set(key, value)
+		}
+	}
 	return "https://tickets.vueling.com/booking?" + q.Encode(), nil
+}
+
+func validFlightNumber(s string) bool {
+	if !strings.HasPrefix(s, "VY") || len(s) < 5 || len(s) > 6 {
+		return false
+	}
+	for _, r := range s[2:] {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func isAlphaNumeric(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return true
 }
