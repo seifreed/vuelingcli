@@ -26,10 +26,10 @@ func main() {
 		fmt.Printf("vueling %s\n", version)
 	case "search":
 		if len(os.Args) > 2 && (os.Args[2] == "--help" || os.Args[2] == "-h") {
-			fmt.Print("Search Vueling flights\n\nUsage:\n  vueling search <origin> <destination> --date YYYY-MM-DD [options]\n\nOptions:\n  --return YYYY-MM-DD  Return date\n  --adults N           Adults (default 1)\n  --children N         Children (default 0)\n  --infants N          Infants (default 0)\n  --after HH:MM        Earliest departure time\n  --before HH:MM       Latest departure time\n  --direct             Direct flights only\n  --cheapest           Sort by price\n  --available          Hide unavailable offers\n  --limit N            Maximum results\n  --json               Machine-readable JSON output\n  --toon               TOON output for agents\n")
+			fmt.Print("Live flight search is not available in the CLI.\n\nUse 'vueling link <origin> <destination> --date <date>' to open a search on Vueling's website.\n")
 			return
 		}
-		fmt.Fprintln(os.Stderr, "search: live flight search is not implemented yet")
+		fmt.Fprintln(os.Stderr, "search: live flight search is unavailable; use 'vueling link' to search on Vueling's website")
 		os.Exit(1)
 	case "airports":
 		if len(os.Args) > 2 && (os.Args[2] == "--help" || os.Args[2] == "-h") {
