@@ -17,4 +17,4 @@ Use `vueling` to search publicly available flight offers from Vueling.
 
 ## Commands
 
-The initial CLI skeleton exposes `vueling search` and `vueling airports`; implementation is in progress. Check `vueling help` for supported options before use.
+`vueling calendar BCN MLA --date tomorrow` builds a public Vueling price-calendar link. Add `--json` or `--toon` for structured output. `vueling search` and `vueling airports` are still in progress; check `vueling help` before use and do not claim these commands return live data.
