@@ -12,4 +12,4 @@ test:
 	go test -race ./...
 
 build:
-	go build ./cmd/vueling
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; go build -o "$$tmp/vueling" ./cmd/vueling
