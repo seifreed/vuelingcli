@@ -1,8 +1,8 @@
 # vuelingcli
 
-CLI no oficial para consultar vuelos y tarifas públicas de Vueling desde la terminal, pensado también para agentes.
+CLI no oficial para consultar el calendario público de precios de Vueling desde la terminal, pensado también para agentes.
 
-La herramienta será de solo lectura: permite buscar y consultar ofertas. No reserva, no paga y no modifica viajes.
+La herramienta es de solo lectura: genera enlaces públicos, pero no reserva, no paga ni modifica viajes.
 
 ## Desarrollo
 
@@ -12,7 +12,7 @@ go run ./cmd/vueling version
 go run ./cmd/vueling calendar BCN MLA --date 14/01/2027
 ```
 
-`calendar` builds Vueling's public price-calendar URL. It accepts `YYYY-MM-DD`, `DD/MM/YYYY`, `today`, `tomorrow`, `+N`, or a weekday name in English or Spanish. Use `--json` or `--toon` for structured output. `search` and `airports` are not implemented yet.
+`calendar` builds Vueling's public price-calendar URL. It accepts `YYYY-MM-DD`, `DD/MM/YYYY`, `today`, `tomorrow`, `+N`, or a weekday name in English or Spanish. Use `--json` or `--toon` for structured output. `link` builds the official flight-selection URL from route, date, and passenger options. `airports` searches a local catalogue of common Vueling airports; it is not the full route network. `search` is not available because the official Flight Calendar Prices API requires access from Vueling.
 
 ## Skill para agentes
 
