@@ -20,12 +20,17 @@ var catalogue = []Airport{
 }
 
 func Search(query string) []Airport {
-	q := strings.ToLower(strings.TrimSpace(query))
-	var matches []Airport
+	q := normalize(query)
+	matches := []Airport{}
 	for _, airport := range catalogue {
-		if q == "" || strings.Contains(strings.ToLower(airport.City), q) || strings.EqualFold(airport.Code, q) {
+		if q == "" || strings.Contains(normalize(airport.City), q) || strings.EqualFold(airport.Code, q) {
 			matches = append(matches, airport)
 		}
 	}
 	return matches
+}
+
+func normalize(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	return strings.NewReplacer("á", "a", "é", "e", "í", "i", "ó", "o", "ú", "u", "ü", "u").Replace(s)
 }
