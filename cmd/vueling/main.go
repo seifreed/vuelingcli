@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/seifreed/vuelingcli/internal/airports"
 	"github.com/seifreed/vuelingcli/internal/search"
 	"github.com/seifreed/vuelingcli/internal/vueling"
 )
@@ -34,8 +35,10 @@ func main() {
 			fmt.Print("Find Vueling airport codes\n\nUsage:\n  vueling airports <city, airport name, or IATA code> [--json]\n")
 			return
 		}
-		fmt.Fprintln(os.Stderr, "airports: lookup is not implemented yet")
-		os.Exit(1)
+		if err := airportSearch(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "airports: %v\n", err)
+			os.Exit(2)
+		}
 	case "calendar":
 		if err := calendar(os.Args[2:]); err != nil {
 			fmt.Fprintf(os.Stderr, "calendar: %v\n", err)
@@ -50,6 +53,35 @@ func main() {
 		fmt.Fprintf(os.Stderr, "vueling: unknown command %q (run 'vueling help')\n", os.Args[1])
 		os.Exit(2)
 	}
+}
+
+func airportSearch(args []string) error {
+	jsonOutput := false
+	var query []string
+	for _, arg := range args {
+		if arg == "--json" {
+			jsonOutput = true
+		} else if strings.HasPrefix(arg, "-") {
+			return fmt.Errorf("unknown option %s", arg)
+		} else {
+			query = append(query, arg)
+		}
+	}
+	if len(query) > 1 {
+		return fmt.Errorf("use one city, airport, or IATA code")
+	}
+	term := ""
+	if len(query) == 1 {
+		term = query[0]
+	}
+	results := airports.Search(term)
+	if jsonOutput {
+		return json.NewEncoder(os.Stdout).Encode(results)
+	}
+	for _, airport := range results {
+		fmt.Printf("%-4s %s\n", airport.Code, airport.City)
+	}
+	return nil
 }
 
 func flightLink(args []string) error {
