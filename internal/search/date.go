@@ -16,6 +16,22 @@ func ParseDate(value string, now time.Time) (time.Time, error) {
 	case "tomorrow":
 		return today.AddDate(0, 0, 1), nil
 	}
+	weekdays := map[string]time.Weekday{
+		"sunday": time.Sunday, "sun": time.Sunday, "domingo": time.Sunday,
+		"monday": time.Monday, "mon": time.Monday, "lunes": time.Monday,
+		"tuesday": time.Tuesday, "tue": time.Tuesday, "martes": time.Tuesday,
+		"wednesday": time.Wednesday, "wed": time.Wednesday, "miércoles": time.Wednesday, "miercoles": time.Wednesday,
+		"thursday": time.Thursday, "thu": time.Thursday, "jueves": time.Thursday,
+		"friday": time.Friday, "fri": time.Friday, "viernes": time.Friday,
+		"saturday": time.Saturday, "sat": time.Saturday, "sábado": time.Saturday, "sabado": time.Saturday,
+	}
+	if weekday, ok := weekdays[value]; ok {
+		days := (int(weekday) - int(today.Weekday()) + 7) % 7
+		if days == 0 {
+			days = 7
+		}
+		return today.AddDate(0, 0, days), nil
+	}
 	if strings.HasPrefix(value, "+") {
 		var days int
 		if _, err := fmt.Sscanf(value, "+%d", &days); err != nil || days < 0 {
