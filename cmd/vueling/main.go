@@ -11,6 +11,7 @@ import (
 	"github.com/seifreed/vuelingcli/internal/airports"
 	"github.com/seifreed/vuelingcli/internal/search"
 	"github.com/seifreed/vuelingcli/internal/vueling"
+	toon "github.com/toon-format/toon-go"
 )
 
 const version = "0.1.0"
@@ -32,7 +33,7 @@ func main() {
 		os.Exit(1)
 	case "airports":
 		if len(os.Args) > 2 && (os.Args[2] == "--help" || os.Args[2] == "-h") {
-			fmt.Print("Find Vueling airport codes\n\nUsage:\n  vueling airports <city, airport name, or IATA code> [--json]\n")
+			fmt.Print("Find Vueling airport codes\n\nUsage:\n  vueling airports <city, airport name, or IATA code> [--json|--toon]\n")
 			return
 		}
 		if err := airportSearch(os.Args[2:]); err != nil {
@@ -56,11 +57,15 @@ func main() {
 }
 
 func airportSearch(args []string) error {
-	jsonOutput := false
+	format := ""
 	var query []string
 	for _, arg := range args {
-		if arg == "--json" {
-			jsonOutput = true
+		if arg == "--json" || arg == "--toon" {
+			requested := arg[2:]
+			if format != "" && format != requested {
+				return fmt.Errorf("--json and --toon cannot be used together")
+			}
+			format = requested
 		} else if strings.HasPrefix(arg, "-") {
 			return fmt.Errorf("unknown option %s", arg)
 		} else {
@@ -75,8 +80,11 @@ func airportSearch(args []string) error {
 		term = query[0]
 	}
 	results := airports.Search(term)
-	if jsonOutput {
+	if format == "json" {
 		return json.NewEncoder(os.Stdout).Encode(results)
+	}
+	if format == "toon" {
+		return writeTOON(results)
 	}
 	for _, airport := range results {
 		fmt.Printf("%-4s %s\n", airport.Code, airport.City)
@@ -159,7 +167,7 @@ func flightLink(args []string) error {
 	if err != nil {
 		return fmt.Errorf("invalid --discount: %w", err)
 	}
-	link, err := vueling.FlightURL(vueling.LinkOptions{Origin: positional[0], Destination: positional[1], Date: date, ReturnDate: returnDate, Adults: adults, Children: children, Infants: infants, Discount: discount, Culture: values["culture"], Currency: values["currency"], OutboundFlight: strings.ToUpper(values["flight"]), OutboundFareBasis: values["fare-basis"], ReturnFlight: strings.ToUpper(values["return-flight"]), ReturnFareBasis: values["return-fare-basis"], METToken: values["token"]})
+	link, err := vueling.FlightURL(vueling.LinkOptions{Origin: positional[0], Destination: positional[1], Date: date, ReturnDate: returnDate, Adults: adults, Children: children, Infants: infants, Discount: discount, Culture: values["culture"], Currency: values["currency"], OutboundFlight: values["flight"], OutboundFareBasis: values["fare-basis"], ReturnFlight: values["return-flight"], ReturnFareBasis: values["return-fare-basis"], METToken: values["token"]})
 	if err != nil {
 		return err
 	}
@@ -167,8 +175,7 @@ func flightLink(args []string) error {
 		return json.NewEncoder(os.Stdout).Encode(map[string]string{"url": link})
 	}
 	if format == "toon" {
-		fmt.Printf("url: %s\n", link)
-		return nil
+		return writeTOON(map[string]string{"url": link})
 	}
 	fmt.Println(link)
 	return nil
@@ -218,9 +225,29 @@ func calendar(args []string) error {
 		return json.NewEncoder(os.Stdout).Encode(map[string]string{"url": link})
 	}
 	if format == "toon" {
-		fmt.Printf("url: %s\n", link)
-		return nil
+		return writeTOON(map[string]string{"url": link})
 	}
 	fmt.Println(link)
 	return nil
+}
+
+func writeTOON(value any) error {
+	encoded, err := encodeTOON(value)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(os.Stdout, encoded)
+	return err
+}
+
+func encodeTOON(value any) (string, error) {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	var generic any
+	if err := json.Unmarshal(raw, &generic); err != nil {
+		return "", err
+	}
+	return toon.MarshalString(generic)
 }
