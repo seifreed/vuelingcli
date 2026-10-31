@@ -39,7 +39,7 @@ $ vueling calendar BCN MLA --date 12/11/2026 --return 03/12/2026 --prices --json
 | Característica | Descripción |
 |---------|-------------|
 | **Ofertas en vivo** | `flights` lee número de vuelo, horarios, tarifa e itinerario visibles, de ida y de vuelta |
-| **Filtros y orden** | `--cheapest`, `--direct`, `--after`, `--before` y `--limit`, aplicados a cada sentido por separado |
+| **Filtros y orden** | `--cheapest`, `--direct`, `--after`, `--before` y `--limit`, aplicados a cada sentido por separado; `--nearby` añade el día más barato del mes según el calendario |
 | **Calendario de precios** | `calendar --prices` lee la tarifa del día de ida y de vuelta; `--month` lista el mes entero y marca el día más barato |
 | **Enlaces oficiales** | `search`/`link` generan la URL de selección de vuelos, con pasajeros, descuentos, moneda y vuelo concreto |
 | **Estado de vuelos** | `status VY1158` o `status BCN PMI` leen el estado público de un vuelo o de todos los de una ruta (en hora, en vuelo, aterrizado...) |
@@ -81,6 +81,9 @@ vueling flights BCN MLA --date 14/01/2027 --return 28/01/2027 --json
 
 # Solo directos, entre las 08:00 y las 20:00, los 3 más baratos
 vueling flights BCN MLA --date 14/01/2027 --direct --after 08:00 --before 20:00 --cheapest --limit 3
+
+# Además, el día más barato del mes de ida y del de vuelta
+vueling flights BCN MLA --date 14/01/2027 --return 28/01/2027 --nearby
 
 # Tarifas de ida y vuelta en el calendario de precios
 vueling calendar BCN MLA --date 14/01/2027 --return 28/01/2027 --prices --json

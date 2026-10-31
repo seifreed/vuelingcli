@@ -58,7 +58,7 @@ Builds a URL for Vueling's public price calendar. With `--prices`, reads the req
 ### `vueling flights`
 
 ```text
-vueling flights <origin city-or-IATA> <destination city-or-IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency CODE] [--cdp-url http://127.0.0.1:9222] [--cheapest] [--direct] [--after HH:MM] [--before HH:MM] [--limit N] [--json|--toon]
+vueling flights <origin city-or-IATA> <destination city-or-IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency CODE] [--cdp-url http://127.0.0.1:9222] [--cheapest] [--direct] [--after HH:MM] [--before HH:MM] [--limit N] [--nearby] [--json|--toon]
 ```
 
 On macOS, opens a search tab in the current Chrome profile, submits the visible search form, and reads its rendered flight cards through Apple Events. Chrome requires **View > Developer > Allow JavaScript from Apple Events**; that setting permits scripts to run in pages, so enable it only with the user's explicit approval. On other systems, the command uses Chrome's local DevTools endpoint. That endpoint grants browser control and must stay on loopback; `--cdp-url` accepts only localhost or a loopback IP. Chrome 136+ ignores the command-line port switch for its default data directory, so do not copy the user's profile as a workaround. See [Chrome's remote-debugging changes](https://developer.chrome.com/blog/remote-debugging-port). The command reads no cookies, storage, tokens, or network requests and does not select any fare. A CAPTCHA, expired session, or Vueling service outage can prevent results from loading.
@@ -76,6 +76,8 @@ Ranking and filters apply to outbound and return offers independently:
 | `--limit N` | Keep the first `N` offers per direction after filtering and sorting (`N` ≥ 1). |
 
 Example: `vueling flights BCN MLA --date +7 --return +14 --direct --after 08:00 --cheapest --limit 3 --json`.
+
+`--nearby` also reads the public price calendar (like `calendar --prices --month`) after the offers and reports the cheapest day of the outbound month, and of the return month with `--return` (earliest day on ties). Text output ends with `cheapest nearby: DD/MM/YYYY from FARE` and `cheapest nearby return: DD/MM/YYYY from FARE`; JSON/TOON adds `nearby` and `returnNearby` objects `{ "date", "fare" }`. Without `--nearby` the output is unchanged. If the calendar cannot be read, a warning goes to stderr, those fields are omitted, and the command still exits 0 with the offers. Calendar fares are not final booking quotes.
 
 ### `vueling status`
 

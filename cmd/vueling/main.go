@@ -76,13 +76,14 @@ func main() {
 
 func flights(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Read live flight offers from your Chrome session\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--cdp-url http://127.0.0.1:9222] [--cheapest] [--direct] [--after HH:MM] [--before HH:MM] [--limit N] [--json|--toon]\n\nFilters, sorting, and limits apply to outbound and return offers independently. --after and --before are inclusive departure times.\n\nOn macOS, enable View > Developer > Allow JavaScript from Apple Events in Chrome. Other systems need a local Chrome DevTools endpoint. This command reads rendered offers only; it never selects a fare.\n")
+		fmt.Print("Read live flight offers from your Chrome session\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--cdp-url http://127.0.0.1:9222] [--cheapest] [--direct] [--after HH:MM] [--before HH:MM] [--limit N] [--nearby] [--json|--toon]\n\nFilters, sorting, and limits apply to outbound and return offers independently. --after and --before are inclusive departure times. --nearby also reads the price calendar and reports the cheapest day of the outbound (and return) month.\n\nOn macOS, enable View > Developer > Allow JavaScript from Apple Events in Chrome. Other systems need a local Chrome DevTools endpoint. This command reads rendered offers only; it never selects a fare.\n")
 		return nil
 	}
 	values := map[string]string{}
 	var positional []string
 	format := ""
 	var filter vueling.FlightFilter
+	nearby := false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--json" || a == "--toon" {
@@ -90,6 +91,10 @@ func flights(args []string) error {
 				return fmt.Errorf("--json and --toon cannot be used together")
 			}
 			format = a[2:]
+			continue
+		}
+		if a == "--nearby" {
+			nearby = true
 			continue
 		}
 		if a == "--cheapest" || a == "--direct" {
@@ -200,17 +205,72 @@ func flights(args []string) error {
 		return err
 	}
 	flights = vueling.FilterFlights(flights, filter)
+	result := map[string]any{"url": searchURL, "flights": flights}
+	var outboundNearby, returnNearby *vueling.CalendarDay
+	if nearby {
+		outboundNearby, returnNearby = nearbyFares(values["cdp-url"], origin, destination, date, returnDate)
+		if outboundNearby != nil {
+			result["nearby"] = outboundNearby
+		}
+		if returnNearby != nil {
+			result["returnNearby"] = returnNearby
+		}
+	}
 	if format == "json" {
-		return json.NewEncoder(os.Stdout).Encode(map[string]any{"url": searchURL, "flights": flights})
+		return json.NewEncoder(os.Stdout).Encode(result)
 	}
 	if format == "toon" {
-		return writeTOON(map[string]any{"url": searchURL, "flights": flights})
+		return writeTOON(result)
 	}
 	fmt.Printf("%s\n", searchURL)
 	for _, flight := range flights {
 		fmt.Printf("%-8s %s %s %s–%s %s %s | %s\n", strings.ToUpper(flight.Direction), flight.Date, flight.Flight, flight.Departure, flight.Arrival, flight.Fare, flight.Currency, flight.Itinerary)
 	}
+	if outboundNearby != nil {
+		fmt.Printf("cheapest nearby: %s from %s\n", outboundNearby.Date, outboundNearby.Fare)
+	}
+	if returnNearby != nil {
+		fmt.Printf("cheapest nearby return: %s from %s\n", returnNearby.Date, returnNearby.Fare)
+	}
 	return nil
+}
+
+// nearbyFares reads the cheapest calendar day of the outbound and return months,
+// warning on stderr instead of failing because the flight offers are the primary output.
+func nearbyFares(endpoint, origin, destination string, date, returnDate time.Time) (*vueling.CalendarDay, *vueling.CalendarDay) {
+	link, err := vueling.CalendarURL(origin, destination, date)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "flights: warning: nearby fares unavailable: %v\n", err)
+		return nil, nil
+	}
+	returnValue := ""
+	if !returnDate.IsZero() {
+		returnValue = returnDate.Format("02/01/2006")
+	}
+	calendar, err := vueling.CalendarMonthFromBrowser(context.Background(), endpoint, link, returnValue)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "flights: warning: nearby fares unavailable: %v\n", err)
+		return nil, nil
+	}
+	cheapest := func(days []vueling.CalendarDay) *vueling.CalendarDay {
+		day, ok := vueling.CheapestDay(days)
+		if !ok {
+			return nil
+		}
+		return &day
+	}
+	outbound := cheapest(calendar.Days)
+	if outbound == nil {
+		fmt.Fprintln(os.Stderr, "flights: warning: nearby fares unavailable: Vueling did not render readable calendar fares")
+	}
+	if returnValue == "" {
+		return outbound, nil
+	}
+	inbound := cheapest(calendar.ReturnDays)
+	if inbound == nil {
+		fmt.Fprintln(os.Stderr, "flights: warning: nearby return fares unavailable: Vueling did not render readable return calendar fares")
+	}
+	return outbound, inbound
 }
 
 func flightStatus(args []string) error {
