@@ -63,10 +63,11 @@ const renderedPriceScript = `(() => {
   const params = new URL(location.href).searchParams;
   const day = params.get('dateComplete')?.slice(0, 2);
   const tables = [...document.querySelectorAll('table')];
-  const findFare = (table, value) => [...(table?.querySelectorAll('button') || [])].find(b => new RegExp('^' + Number(value) + '\\s').test((b.innerText || '').trim()) && /(?:€|EUR|£|USD|\\$)/.test(b.innerText || ''))?.innerText.match(/[0-9]+(?:[.,][0-9]{1,2})?\s*(?:EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\\$)/i)?.[0]?.trim();
+  const hasCurrency = text => /\b(?:EUR|USD|SEK|NOK|DKK|CHF|GBP)\b|[€£$]/i.test(text);
+  const findFare = (table, value) => [...(table?.querySelectorAll('button') || [])].find(b => new RegExp('^' + Number(value) + '\\s').test((b.innerText || '').trim()) && hasCurrency(b.innerText || ''))?.innerText.match(/[0-9]+(?:[.,][0-9]{1,2})?\s*(?:EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\$)/i)?.[0]?.trim();
   const fare = findFare(tables[0], day);
   const month = params.get('vuelingcliMonth') === '1';
-  const dayFares = table => month ? [...(table?.querySelectorAll('button') || [])].map(b => (b.innerText || '').trim()).filter(t => /(?:€|EUR|£|USD|\$)/.test(t)).map(t => ({day: t.match(/^(\d{1,2})\s/)?.[1], fare: t.match(/[0-9]+(?:[.,][0-9]{1,2})?\s*(?:EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\$)/i)?.[0]?.trim()})).filter(d => d.day && d.fare) : [];
+  const dayFares = table => month ? [...(table?.querySelectorAll('button') || [])].map(b => (b.innerText || '').trim()).filter(hasCurrency).map(t => ({day: t.match(/^(\d{1,2})\s/)?.[1], fare: t.match(/[0-9]+(?:[.,][0-9]{1,2})?\s*(?:EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\$)/i)?.[0]?.trim()})).filter(d => d.day && d.fare) : [];
   const days = dayFares(tables[0]);
   const returnDate = params.get('vuelingcliReturnDate') || '';
   const monthNames = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -91,7 +92,7 @@ const renderedPriceScript = `(() => {
   const route = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^IDA:/i.test(t));
   const returnRoute = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^VUELTA:/i.test(t));
   if (month) return days.length && route && (!returnDate || returnDays.length) ? {route, date: params.get('dateComplete'), fare, returnRoute, returnDate, returnFare, days, returnDays} : [];
-  const priced = table => [...(table?.querySelectorAll('button') || [])].some(b => /(?:€|EUR|£|USD|\$)/.test(b.innerText || ''));
+  const priced = table => [...(table?.querySelectorAll('button') || [])].some(b => hasCurrency(b.innerText || ''));
   if (route && priced(tables[0]) && !fare) return {error: 'shows no fare for the requested date'};
   if (route && returnDate && priced(tables[1]) && !returnFare) return {error: 'shows no fare for the requested return date'};
   return fare && route && (!returnDate || returnFare) ? {route, date: params.get('dateComplete'), fare, returnRoute, returnDate, returnFare} : [];
