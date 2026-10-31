@@ -8,12 +8,12 @@ import (
 	"github.com/seifreed/vuelingcli/internal/vueling"
 )
 
-func (cli *CLI) flightLink(args []string) error {
+func (cli *CLI) flightLink(command string, args []string) error {
 	if isHelp(args) {
 		_, err := fmt.Fprint(cli.stdout, "Build a Vueling flight-selection link\n\nUsage:\n  vueling link <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--open] [--json|--toon]\n")
 		return err
 	}
-	options, err := parseFlightLinkOptions(args)
+	options, err := parseFlightLinkOptions(command, args)
 	if err != nil {
 		return err
 	}

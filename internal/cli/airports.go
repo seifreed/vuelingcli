@@ -25,13 +25,16 @@ func (cli *CLI) airportSearch(args []string) error {
 		}
 	}
 	if len(query) > 1 {
-		return fmt.Errorf("use one city, airport, or IATA code")
+		return fmt.Errorf("use one city, airport, or IATA code (quote names with spaces)")
 	}
 	term := ""
 	if len(query) == 1 {
 		term = query[0]
 	}
 	results := airports.Search(term)
+	if len(results) == 0 && format == "" {
+		return fmt.Errorf("no Vueling airport matches %q", term)
+	}
 	if format != "" {
 		return cli.writeStructured(results, format)
 	}
@@ -45,14 +48,18 @@ func (cli *CLI) airportSearch(args []string) error {
 
 func resolveAirport(value string) (string, error) {
 	value = strings.TrimSpace(value)
-	if len(value) == 3 {
-		return strings.ToUpper(value), nil
-	}
 	matches := airports.Search(value)
-	switch len(matches) {
-	case 1:
+	for _, match := range matches {
+		if strings.EqualFold(match.Code, value) || strings.EqualFold(match.City, value) {
+			return match.Code, nil
+		}
+	}
+	switch {
+	case len(matches) == 1:
 		return matches[0].Code, nil
-	case 0:
+	case len(value) == 3:
+		return strings.ToUpper(value), nil
+	case len(matches) == 0:
 		return "", fmt.Errorf("%q is not in the airport catalogue; use an IATA code or 'vueling airports'", value)
 	default:
 		codes := make([]string, len(matches))

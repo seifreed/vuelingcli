@@ -46,7 +46,7 @@ func (cli *CLI) Run(args []string) int {
 			}
 			return 0
 		}
-		err = cli.flightLink(args)
+		err = cli.flightLink(command, args)
 	case "airports":
 		if isHelp(args) {
 			if _, err := fmt.Fprint(cli.stdout, "Find Vueling airport codes\n\nUsage:\n  vueling airports <city, airport name, or IATA code> [--json|--toon]\n"); err != nil {
@@ -62,7 +62,7 @@ func (cli *CLI) Run(args []string) int {
 	case "status":
 		err = cli.flightStatus(args)
 	case "link":
-		err = cli.flightLink(args)
+		err = cli.flightLink(command, args)
 	default:
 		if _, err := fmt.Fprintf(cli.stderr, "vueling: unknown command %q (run 'vueling help')\n", command); err != nil {
 			return 1

@@ -13,7 +13,7 @@ type flightLinkOptions struct {
 	open   bool
 }
 
-func parseFlightLinkOptions(args []string) (flightLinkOptions, error) {
+func parseFlightLinkOptions(command string, args []string) (flightLinkOptions, error) {
 	values := map[string]string{}
 	var positional []string
 	format := ""
@@ -49,7 +49,7 @@ func parseFlightLinkOptions(args []string) (flightLinkOptions, error) {
 		positional = append(positional, a)
 	}
 	if len(positional) != 2 || values["date"] == "" {
-		return flightLinkOptions{}, fmt.Errorf("usage: vueling link <origin city or IATA> <destination city or IATA> --date <date> [options]")
+		return flightLinkOptions{}, fmt.Errorf("usage: vueling %s <origin city or IATA> <destination city or IATA> --date <date> [options]", command)
 	}
 	origin, err := resolveAirport(positional[0])
 	if err != nil {

@@ -45,7 +45,9 @@ func TestRunReturnsProcessStatus(t *testing.T) {
 func TestCommandsRejectInvalidArguments(t *testing.T) {
 	cli, _, _ := newTestCLI()
 	flights, calendar, flightStatus := cli.flights, cli.calendar, cli.flightStatus
-	flightLink, airportSearch, showVersion := cli.flightLink, cli.airportSearch, cli.showVersion
+	airportSearch, showVersion := cli.airportSearch, cli.showVersion
+	flightLink := func(args []string) error { return cli.flightLink("link", args) }
+	flightSearch := func(args []string) error { return cli.flightLink("search", args) }
 	for _, tc := range []struct {
 		name    string
 		command func([]string) error
@@ -99,7 +101,8 @@ func TestCommandsRejectInvalidArguments(t *testing.T) {
 		{"status invalid date", flightStatus, []string{"VY1234", "--date", "soon"}, "invalid --date"},
 
 		{"link unknown option", flightLink, []string{"BCN", "AGP", "--date", "+30", "--seat", "1A"}, "unknown option --seat"},
-		{"link missing date", flightLink, []string{"BCN", "AGP"}, "usage:"},
+		{"link missing date", flightLink, []string{"BCN", "AGP"}, "usage: vueling link"},
+		{"search missing date", flightSearch, []string{"BCN", "AGP"}, "usage: vueling search"},
 		{"link unknown origin", flightLink, []string{"Atlantis", "AGP", "--date", "+30"}, "origin:"},
 		{"link unknown destination", flightLink, []string{"BCN", "Atlantis", "--date", "+30"}, "destination:"},
 		{"link invalid date", flightLink, []string{"BCN", "AGP", "--date", "soon"}, "invalid date"},
@@ -111,6 +114,7 @@ func TestCommandsRejectInvalidArguments(t *testing.T) {
 		{"link discount out of range", flightLink, []string{"BCN", "AGP", "--date", "+30", "--discount", "9"}, "discount must be between 0 and 5"},
 
 		{"airports unknown option", airportSearch, []string{"--all"}, "unknown option --all"},
+		{"airports no match", airportSearch, []string{"Atlantis"}, "no Vueling airport matches"},
 		{"airports two terms", airportSearch, []string{"Barcelona", "Madrid"}, "use one city"},
 
 		{"version unknown option", showVersion, []string{"--short"}, "unknown option --short"},
@@ -126,7 +130,7 @@ func TestCommandsRejectInvalidArguments(t *testing.T) {
 
 func TestFlightLinkPrintsURL(t *testing.T) {
 	cli, output, _ := newTestCLI()
-	err := cli.flightLink(strings.Fields("barcelona agp --date +30 --adults=2 --children 1 --flight vy2115 --json"))
+	err := cli.flightLink("link", strings.Fields("barcelona agp --date +30 --adults=2 --children 1 --flight vy2115 --json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,6 +214,9 @@ func TestResolveAirport(t *testing.T) {
 		{"Barcelona", "BCN", true},
 		{"Heathrow", "LHR", true},
 		{"Londres", "", false},
+		{"sal", "SID", true},
+		{"Salerno", "QSR", true},
+		{"zzz", "ZZZ", true},
 		{"Atlantis", "", false},
 	} {
 		got, err := resolveAirport(tc.value)
@@ -235,5 +242,25 @@ func TestPrintCalendarDaysMarksCheapest(t *testing.T) {
 	want := "IDA: Barcelona - Málaga\n03/01/2027: 29 € [cheapest]\n04/01/2027: 40 €\n"
 	if output.String() != want {
 		t.Fatalf("printCalendarDays = %q, want %q", output, want)
+	}
+}
+
+type cannedPageReader string
+
+func (r cannedPageReader) ReadPage(context.Context, string, string) ([]byte, error) {
+	return []byte(r), nil
+}
+
+func TestCalendarPricesPrintsReturnFare(t *testing.T) {
+	stdout := new(bytes.Buffer)
+	page := cannedPageReader(`{"route":"IDA: BARCELONA","date":"20/11/2026","fare":"112 €","returnRoute":"VUELTA: MADRID","returnDate":"25/11/2026","returnFare":"90 €"}`)
+	cli := New("test", stdout, new(bytes.Buffer), func(string) web.PageReader { return page })
+	date := time.Now().AddDate(0, 0, 20)
+	err := cli.calendar([]string{"BCN", "MAD", "--date", date.Format("2006-01-02"), "--return", date.AddDate(0, 0, 5).Format("2006-01-02"), "--prices"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "VUELTA: MADRID " + date.AddDate(0, 0, 5).Format("02/01/2006") + ": 90 €\n"; !strings.HasSuffix(stdout.String(), want) {
+		t.Fatalf("calendar printed %q, want suffix %q", stdout, want)
 	}
 }
