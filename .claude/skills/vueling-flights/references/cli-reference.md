@@ -82,11 +82,13 @@ Example: `vueling flights BCN MLA --date +7 --return +14 --direct --after 08:00 
 ### `vueling status`
 
 ```text
-vueling status <VY flight number> [--date <date>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]
-vueling status <origin city-or-IATA> <destination city-or-IATA> [--date <date>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]
+vueling status <VY flight number> [--date <date>] [--watch <minutes>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]
+vueling status <origin city-or-IATA> <destination city-or-IATA> [--date <date>] [--watch <minutes>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]
 ```
 
 Reads the live status of one Vueling flight, or of every Vueling flight on a route that day, from the public [flight-status page](https://www.vueling.com/es/servicios-vueling/informacion-de-vuelos/estado-de-vuelos). That page has no deep link, so the command fills its flight-number or origin/destination form in a new tab of the current Chrome profile (macOS Apple Events) or local DevTools session, reads the rendered cards, and closes the tab. `--date` defaults to `today`; the page only offers a few days around today and the command reports dates it disables. A search with no result for that day is reported as an error. Flight numbers may carry a letter suffix, such as `VY392D`, both in the output and as the query. The JSON/TOON value is an array of objects with `flight`, `date`, `status` (Vueling's text, such as `En Hora`), `origin`, `destination`, `departure`, `arrival`, and the visible card text in `details`. Vueling notes that this information is indicative and refreshes every 10 minutes.
+
+`--watch <minutes>` keeps reading every N minutes (a whole number, at least `5`). It prints the first read, then only cards whose `status`, `departure`, or `arrival` changed. Text lines carry the local time (`HH:MM`) before the usual line; with `--json` each card is printed as one JSON object per line (NDJSON) instead of an array. It stops once every watched card is `Aterrizado`/`Landed` or `Cancelado`/`Cancelled` (case-insensitive), or on Ctrl-C/SIGTERM, exiting `0`. A failed first read exits as usual; later failed reads print a warning to stderr and watching continues. `--watch` with `--toon` or a value below 5 is a usage error.
 
 ### `vueling airports`
 
