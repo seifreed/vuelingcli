@@ -68,3 +68,27 @@ func CheapestDay(days []CalendarDay) (CalendarDay, bool) {
 	}
 	return cheapest, found
 }
+
+// FareOn returns the day fare of a DD/MM/YYYY date.
+func FareOn(days []CalendarDay, date string) (CalendarDay, bool) {
+	for _, day := range days {
+		if day.Date == date {
+			return day, true
+		}
+	}
+	return CalendarDay{}, false
+}
+
+// MonthOf returns the day fares in the month of a DD/MM/YYYY date.
+func MonthOf(days []CalendarDay, date string) []CalendarDay {
+	month := []CalendarDay{}
+	if len(date) != len("02/01/2006") {
+		return month
+	}
+	for _, day := range days {
+		if strings.HasSuffix(day.Date, date[2:]) {
+			month = append(month, day)
+		}
+	}
+	return month
+}

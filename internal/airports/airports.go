@@ -90,3 +90,13 @@ func normalize(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	return strings.NewReplacer("á", "a", "é", "e", "í", "i", "ó", "o", "ú", "u", "ü", "u").Replace(s)
 }
+
+// City returns the catalogue city of an IATA code.
+func City(code string) (string, bool) {
+	for _, airport := range catalogue {
+		if strings.EqualFold(airport.Code, code) {
+			return airport.City, true
+		}
+	}
+	return "", false
+}

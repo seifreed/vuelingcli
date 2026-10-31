@@ -52,3 +52,19 @@ func TestCheapestDay(t *testing.T) {
 		t.Fatal("CheapestDay found a fare in no days")
 	}
 }
+
+func TestFareOnAndMonthOf(t *testing.T) {
+	days := []CalendarDay{{"30/11/2026", "40 €"}, {"03/12/2026", "29 €"}, {"20/12/2026", "35 €"}, {"03/01/2027", "50 €"}}
+	if day, ok := FareOn(days, "03/12/2026"); !ok || day != days[1] {
+		t.Fatalf("FareOn = %v, %v; want %v", day, ok, days[1])
+	}
+	if _, ok := FareOn(days, "04/12/2026"); ok {
+		t.Fatal("FareOn found a fare on a day without one")
+	}
+	if month := MonthOf(days, "15/12/2026"); len(month) != 2 || month[0] != days[1] || month[1] != days[2] {
+		t.Fatalf("MonthOf = %v, want December's two days", month)
+	}
+	if month := MonthOf(days, ""); len(month) != 0 {
+		t.Fatalf("MonthOf without a date = %v, want none", month)
+	}
+}

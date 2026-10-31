@@ -19,3 +19,12 @@ func TestSearch(t *testing.T) {
 		t.Fatal("no matches should encode as an empty JSON array, not null")
 	}
 }
+
+func TestCity(t *testing.T) {
+	if city, ok := City("bio"); !ok || city != "Bilbao" {
+		t.Fatalf("City(bio) = %q, %v; want Bilbao", city, ok)
+	}
+	if _, ok := City("ZZZ"); ok {
+		t.Fatal("City found an unknown code")
+	}
+}
