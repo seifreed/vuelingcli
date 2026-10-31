@@ -30,3 +30,12 @@ func TestParseDateRejectsRelativeDateOverflow(t *testing.T) {
 		t.Fatalf("ParseDate(%q) = %v, nil; want a range error", input, got)
 	}
 }
+
+func TestParseDateRejectsCalendarDateOverflow(t *testing.T) {
+	now := time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
+	for _, input := range []string{"tomorrow", "monday"} {
+		if got, err := ParseDate(input, now); err == nil {
+			t.Errorf("ParseDate(%q) = %v, nil; want a range error", input, got)
+		}
+	}
+}

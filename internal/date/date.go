@@ -14,9 +14,9 @@ func ParseDate(value string, now time.Time) (time.Time, error) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	switch value {
 	case "today":
-		return today, nil
+		return validateSupportedDate(value, today)
 	case "tomorrow":
-		return today.AddDate(0, 0, 1), nil
+		return validateSupportedDate(value, today.AddDate(0, 0, 1))
 	}
 	weekdays := map[string]time.Weekday{
 		"sunday": time.Sunday, "sun": time.Sunday, "domingo": time.Sunday,
@@ -32,7 +32,7 @@ func ParseDate(value string, now time.Time) (time.Time, error) {
 		if days == 0 {
 			days = 7
 		}
-		return today.AddDate(0, 0, days), nil
+		return validateSupportedDate(value, today.AddDate(0, 0, days))
 	}
 	if strings.HasPrefix(value, "+") {
 		days, err := strconv.Atoi(value[1:])
@@ -57,4 +57,11 @@ func ParseDate(value string, now time.Time) (time.Time, error) {
 		}
 	}
 	return time.Time{}, fmt.Errorf("invalid date %q (use YYYY-MM-DD, DD/MM/YYYY, today, tomorrow, or +N)", value)
+}
+
+func validateSupportedDate(value string, date time.Time) (time.Time, error) {
+	if date.Year() > 9999 {
+		return time.Time{}, fmt.Errorf("date %q is outside the supported date range", value)
+	}
+	return date, nil
 }
