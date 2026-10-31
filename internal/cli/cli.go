@@ -64,11 +64,15 @@ func (cli *CLI) Run(args []string) int {
 	case "link":
 		err = cli.flightLink(args)
 	default:
-		_, _ = fmt.Fprintf(cli.stderr, "vueling: unknown command %q (run 'vueling help')\n", command)
+		if _, err := fmt.Fprintf(cli.stderr, "vueling: unknown command %q (run 'vueling help')\n", command); err != nil {
+			return 1
+		}
 		return 2
 	}
 	if err != nil {
-		_, _ = fmt.Fprintf(cli.stderr, "%s: %v\n", label, err)
+		if _, writeErr := fmt.Fprintf(cli.stderr, "%s: %v\n", label, err); writeErr != nil {
+			return 1
+		}
 		return 2
 	}
 	return 0

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -34,7 +35,10 @@ func (cli *CLI) flights(args []string) error {
 	result := map[string]any{"url": searchURL, "flights": flights}
 	var outboundNearby, returnNearby *vueling.CalendarDay
 	if options.nearby {
-		outboundNearby, returnNearby = cli.nearbyFares(reader, options.origin, options.destination, options.date, options.returnDate)
+		outboundNearby, returnNearby, err = cli.nearbyFares(reader, options.origin, options.destination, options.date, options.returnDate)
+		if err != nil {
+			return err
+		}
 		if outboundNearby != nil {
 			result["nearby"] = outboundNearby
 		}
@@ -89,11 +93,13 @@ func connectionSummary(flight vueling.Flight) string {
 // nearbyFares reads the cheapest calendar day of the outbound and return months,
 // warning on stderr instead of failing because the flight offers are the primary output.
 
-func (cli *CLI) nearbyFares(reader web.PageReader, origin, destination string, date, returnDate time.Time) (*vueling.CalendarDay, *vueling.CalendarDay) {
+func (cli *CLI) nearbyFares(reader web.PageReader, origin, destination string, date, returnDate time.Time) (*vueling.CalendarDay, *vueling.CalendarDay, error) {
 	link, err := vueling.CalendarURL(origin, destination, date)
 	if err != nil {
-		_, _ = fmt.Fprintf(cli.stderr, "flights: warning: nearby fares unavailable: %v\n", err)
-		return nil, nil
+		if _, writeErr := fmt.Fprintf(cli.stderr, "flights: warning: nearby fares unavailable: %v\n", err); writeErr != nil {
+			return nil, nil, errors.Join(err, fmt.Errorf("write nearby fare warning: %w", writeErr))
+		}
+		return nil, nil, nil
 	}
 	returnValue := ""
 	if !returnDate.IsZero() {
@@ -101,8 +107,10 @@ func (cli *CLI) nearbyFares(reader web.PageReader, origin, destination string, d
 	}
 	calendar, err := web.CalendarMonthFromPage(context.Background(), reader, link, returnValue)
 	if err != nil {
-		_, _ = fmt.Fprintf(cli.stderr, "flights: warning: nearby fares unavailable: %v\n", err)
-		return nil, nil
+		if _, writeErr := fmt.Fprintf(cli.stderr, "flights: warning: nearby fares unavailable: %v\n", err); writeErr != nil {
+			return nil, nil, errors.Join(err, fmt.Errorf("write nearby fare warning: %w", writeErr))
+		}
+		return nil, nil, nil
 	}
 	cheapest := func(days []vueling.CalendarDay) *vueling.CalendarDay {
 		day, ok := vueling.CheapestDay(days)
@@ -113,14 +121,20 @@ func (cli *CLI) nearbyFares(reader web.PageReader, origin, destination string, d
 	}
 	outbound := cheapest(calendar.Days)
 	if outbound == nil {
-		_, _ = fmt.Fprintln(cli.stderr, "flights: warning: nearby fares unavailable: Vueling did not render readable calendar fares")
+		missingFareErr := fmt.Errorf("Vueling did not render readable calendar fares")
+		if _, writeErr := fmt.Fprintln(cli.stderr, "flights: warning: nearby fares unavailable: Vueling did not render readable calendar fares"); writeErr != nil {
+			return nil, nil, errors.Join(missingFareErr, fmt.Errorf("write nearby fare warning: %w", writeErr))
+		}
 	}
 	if returnValue == "" {
-		return outbound, nil
+		return outbound, nil, nil
 	}
 	inbound := cheapest(calendar.ReturnDays)
 	if inbound == nil {
-		_, _ = fmt.Fprintln(cli.stderr, "flights: warning: nearby return fares unavailable: Vueling did not render readable return calendar fares")
+		missingFareErr := fmt.Errorf("Vueling did not render readable return calendar fares")
+		if _, writeErr := fmt.Fprintln(cli.stderr, "flights: warning: nearby return fares unavailable: Vueling did not render readable return calendar fares"); writeErr != nil {
+			return outbound, nil, errors.Join(missingFareErr, fmt.Errorf("write nearby fare warning: %w", writeErr))
+		}
 	}
-	return outbound, inbound
+	return outbound, inbound, nil
 }

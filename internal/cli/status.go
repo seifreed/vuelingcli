@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -62,7 +63,9 @@ func (cli *CLI) watchFlightStatus(every time.Duration, asJSON bool, read func(co
 		case err != nil && first:
 			return err
 		case err != nil:
-			_, _ = fmt.Fprintf(cli.stderr, "status: %v (retrying in %s)\n", err, every)
+			if _, writeErr := fmt.Fprintf(cli.stderr, "status: %v (retrying in %s)\n", err, every); writeErr != nil {
+				return errors.Join(err, fmt.Errorf("write status warning: %w", writeErr))
+			}
 		default:
 			for _, s := range vueling.ChangedStatuses(previous, statuses) {
 				if asJSON {
