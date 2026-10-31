@@ -10,12 +10,13 @@ type calendarOptions struct {
 	date                time.Time
 	returnDate, format  string
 	open, prices, month bool
+	browser             bool
 }
 
 func parseCalendarOptions(args []string, now time.Time) (calendarOptions, error) {
 	var positional []string
 	dateValue, returnValue, format := "", "", ""
-	open, prices, month := false, false, false
+	open, prices, month, browser := false, false, false, false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
@@ -25,6 +26,8 @@ func parseCalendarOptions(args []string, now time.Time) (calendarOptions, error)
 			prices = true
 		case a == "--month":
 			month = true
+		case a == "--browser":
+			browser = true
 		case a == "--date" || a == "--return" || (len(a) > 9 && a[:9] == "--return=") || (len(a) > 7 && a[:7] == "--date="):
 			key, value, next, err := parseLongOption(args, i)
 			if err != nil {
@@ -49,10 +52,13 @@ func parseCalendarOptions(args []string, now time.Time) (calendarOptions, error)
 		}
 	}
 	if len(positional) != 2 || dateValue == "" {
-		return calendarOptions{}, fmt.Errorf("usage: vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices [--month]] [--open] [--json|--toon]")
+		return calendarOptions{}, fmt.Errorf("usage: vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices [--month] [--browser]] [--open] [--json|--toon]")
 	}
 	if month && !prices {
 		return calendarOptions{}, fmt.Errorf("--month requires --prices")
+	}
+	if browser && !prices {
+		return calendarOptions{}, fmt.Errorf("--browser requires --prices")
 	}
 	origin, err := resolveAirport(positional[0])
 	if err != nil {
@@ -82,6 +88,6 @@ func parseCalendarOptions(args []string, now time.Time) (calendarOptions, error)
 	}
 	return calendarOptions{
 		origin: origin, destination: destination, date: date, returnDate: returnDate,
-		format: format, open: open, prices: prices, month: month,
+		format: format, open: open, prices: prices, month: month, browser: browser,
 	}, nil
 }

@@ -6,12 +6,11 @@ import (
 	"time"
 
 	"github.com/seifreed/vuelingcli/internal/vueling"
-	"github.com/seifreed/vuelingcli/internal/vueling/web"
 )
 
 func (cli *CLI) calendar(args []string) error {
 	if isHelp(args) {
-		_, err := fmt.Fprint(cli.stdout, "Read Vueling calendar prices or build its link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices [--month]] [--open] [--json|--toon]\n\n--open also opens the calendar URL in the default browser when reading prices.\n")
+		_, err := fmt.Fprint(cli.stdout, "Read Vueling calendar prices or build its link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices [--month] [--browser]] [--open] [--json|--toon]\n\n--prices reads the day fares from Vueling's public fare-calendar API over HTTPS; --month lists every day fare of the departure (and return) month.\n--browser reads the prices from the rendered calendar page in Chrome instead of the API.\n--open also opens the calendar URL in the default browser when reading prices.\n")
 		return err
 	}
 	options, err := parseCalendarOptions(args, time.Now())
@@ -27,25 +26,16 @@ func (cli *CLI) calendar(args []string) error {
 			return fmt.Errorf("open calendar link: %w", err)
 		}
 	}
-	if options.month {
-		return cli.calendarMonth(cli.newReader(""), link, options.returnDate, options.format)
-	}
 	if options.prices {
-		price, err := web.CalendarPricesFromPage(context.Background(), cli.newReader(""), link, options.returnDate)
+		request := calendarRequest{origin: options.origin, destination: options.destination, date: options.date, returnDate: options.returnDate, month: options.month}
+		calendar, err := cli.readCalendar(context.Background(), options.browser, cli.newReader(""), link, request)
 		if err != nil {
 			return err
 		}
-		price["url"] = link
-		if options.format != "" {
-			return cli.writeStructured(price, options.format)
+		if options.month {
+			return cli.calendarMonth(link, calendar, options.returnDate, options.format)
 		}
-		if _, err := fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["route"], options.date.Format("02/01/2006"), price["fare"]); err != nil {
-			return err
-		}
-		if options.returnDate != "" {
-			_, err = fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["returnRoute"], options.returnDate, price["returnFare"])
-		}
-		return err
+		return cli.calendarPrices(link, calendar.Price, options)
 	}
 	if options.format != "" {
 		return cli.writeStructured(map[string]string{"url": link}, options.format)
@@ -54,11 +44,22 @@ func (cli *CLI) calendar(args []string) error {
 	return err
 }
 
-func (cli *CLI) calendarMonth(reader web.PageReader, link, returnDate, format string) error {
-	calendar, err := web.CalendarMonthFromPage(context.Background(), reader, link, returnDate)
-	if err != nil {
+func (cli *CLI) calendarPrices(link string, price map[string]string, options calendarOptions) error {
+	price["url"] = link
+	if options.format != "" {
+		return cli.writeStructured(price, options.format)
+	}
+	if _, err := fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["route"], options.date.Format("02/01/2006"), price["fare"]); err != nil {
 		return err
 	}
+	if options.returnDate == "" {
+		return nil
+	}
+	_, err := fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["returnRoute"], options.returnDate, price["returnFare"])
+	return err
+}
+
+func (cli *CLI) calendarMonth(link string, calendar vueling.CalendarMonth, returnDate, format string) error {
 	cheapest, ok := vueling.CheapestDay(calendar.Days)
 	if !ok {
 		return fmt.Errorf("Vueling did not render readable calendar fares")

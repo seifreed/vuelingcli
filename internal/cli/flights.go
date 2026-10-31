@@ -38,7 +38,7 @@ func (cli *CLI) flights(args []string) error {
 	result := map[string]any{"url": searchURL, "flights": flights}
 	var outboundNearby, returnNearby *vueling.CalendarDay
 	if options.nearby {
-		outboundNearby, returnNearby, err = cli.nearbyFares(reader, options.origin, options.destination, options.date, options.returnDate)
+		outboundNearby, returnNearby, err = cli.nearbyFares(reader, false, options.origin, options.destination, options.date, options.returnDate)
 		if err != nil {
 			return err
 		}
@@ -93,22 +93,21 @@ func connectionSummary(flight vueling.Flight) string {
 	return summary + " | "
 }
 
-// nearbyFares reads the cheapest calendar day of the outbound and return months,
+// nearbyFares reads the cheapest calendar day of the outbound and return months from Vueling's
+// fare-calendar API, or from the rendered calendar page in Chrome when browser is set,
 // warning on stderr instead of failing because the flight offers are the primary output.
 
-func (cli *CLI) nearbyFares(reader web.PageReader, origin, destination string, date, returnDate time.Time) (*vueling.CalendarDay, *vueling.CalendarDay, error) {
-	link, err := vueling.CalendarURL(origin, destination, date)
-	if err != nil {
-		if _, writeErr := fmt.Fprintf(cli.stderr, "flights: warning: nearby fares unavailable: %v\n", err); writeErr != nil {
-			return nil, nil, errors.Join(err, fmt.Errorf("write nearby fare warning: %w", writeErr))
-		}
-		return nil, nil, nil
-	}
+func (cli *CLI) nearbyFares(reader web.PageReader, browser bool, origin, destination string, date, returnDate time.Time) (*vueling.CalendarDay, *vueling.CalendarDay, error) {
 	returnValue := ""
 	if !returnDate.IsZero() {
 		returnValue = returnDate.Format("02/01/2006")
 	}
-	calendar, err := web.CalendarMonthFromPage(context.Background(), reader, link, returnValue)
+	link, err := vueling.CalendarURL(origin, destination, date)
+	var calendar vueling.CalendarMonth
+	if err == nil {
+		request := calendarRequest{origin: origin, destination: destination, date: date, returnDate: returnValue, month: true}
+		calendar, err = cli.readCalendar(context.Background(), browser, reader, link, request)
+	}
 	if err != nil {
 		if _, writeErr := fmt.Fprintf(cli.stderr, "flights: warning: nearby fares unavailable: %v\n", err); writeErr != nil {
 			return nil, nil, errors.Join(err, fmt.Errorf("write nearby fare warning: %w", writeErr))
