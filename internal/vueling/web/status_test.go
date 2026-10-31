@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -17,5 +18,15 @@ func TestParseStatusCard(t *testing.T) {
 	got = parseStatusCard([]string{"En Hora", "VY392D", "14:40", "BCNBarcelona", "Palma (Mallorca)PMI", "15:35", "VER DETALLES"}, date)
 	if got.Flight != "VY392D" || got.Origin != "BCN" || got.Destination != "PMI" || got.Arrival != "15:35" {
 		t.Fatalf("lettered flight card parsed as %+v", got)
+	}
+}
+
+func TestFlightStatusFromPageRejectsNoCards(t *testing.T) {
+	reader := &testPageReader{output: []byte(`[]`)}
+	date := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
+
+	statuses, err := FlightStatusFromPage(context.Background(), reader, "VY1234", "", "", date)
+	if err == nil || err.Error() != "Vueling did not render any flight status cards" {
+		t.Fatalf("FlightStatusFromPage returned %d statuses and error %v", len(statuses), err)
 	}
 }
