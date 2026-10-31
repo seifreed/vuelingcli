@@ -387,12 +387,12 @@ func openURL(link string) error {
 
 func calendar(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Read Vueling calendar prices or build its link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices] [--open] [--json|--toon]\n")
+		fmt.Print("Read Vueling calendar prices or build its link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices [--month]] [--open] [--json|--toon]\n")
 		return nil
 	}
 	var positional []string
 	dateValue, returnValue, format := "", "", ""
-	open, prices := false, false
+	open, prices, month := false, false, false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
@@ -400,6 +400,8 @@ func calendar(args []string) error {
 			open = true
 		case a == "--prices":
 			prices = true
+		case a == "--month":
+			month = true
 		case a == "--date":
 			i++
 			if i == len(args) {
@@ -428,7 +430,10 @@ func calendar(args []string) error {
 		}
 	}
 	if len(positional) != 2 || dateValue == "" {
-		return fmt.Errorf("usage: vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices] [--open] [--json|--toon]")
+		return fmt.Errorf("usage: vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices [--month]] [--open] [--json|--toon]")
+	}
+	if month && !prices {
+		return fmt.Errorf("--month requires --prices")
 	}
 	origin, err := resolveAirport(positional[0])
 	if err != nil {
@@ -460,6 +465,9 @@ func calendar(args []string) error {
 	if err != nil {
 		return err
 	}
+	if month {
+		return calendarMonth(link, returnDate, format)
+	}
 	if prices {
 		price, err := vueling.CalendarPricesFromBrowser(context.Background(), "", link, returnDate)
 		if err != nil {
@@ -488,6 +496,50 @@ func calendar(args []string) error {
 	}
 	fmt.Println(link)
 	return nil
+}
+
+func calendarMonth(link, returnDate, format string) error {
+	calendar, err := vueling.CalendarMonthFromBrowser(context.Background(), "", link, returnDate)
+	if err != nil {
+		return err
+	}
+	cheapest, ok := vueling.CheapestDay(calendar.Days)
+	if !ok {
+		return fmt.Errorf("Vueling did not render readable calendar fares")
+	}
+	result := map[string]any{"url": link, "days": calendar.Days, "cheapest": cheapest}
+	for key, value := range calendar.Price {
+		result[key] = value
+	}
+	var returnCheapest vueling.CalendarDay
+	if returnDate != "" {
+		if returnCheapest, ok = vueling.CheapestDay(calendar.ReturnDays); !ok {
+			return fmt.Errorf("Vueling did not render readable return calendar fares")
+		}
+		result["returnDays"], result["returnCheapest"] = calendar.ReturnDays, returnCheapest
+	}
+	if format == "json" {
+		return json.NewEncoder(os.Stdout).Encode(result)
+	}
+	if format == "toon" {
+		return writeTOON(result)
+	}
+	printCalendarDays(calendar.Price["route"], calendar.Days, cheapest)
+	if returnDate != "" {
+		printCalendarDays(calendar.Price["returnRoute"], calendar.ReturnDays, returnCheapest)
+	}
+	return nil
+}
+
+func printCalendarDays(route string, days []vueling.CalendarDay, cheapest vueling.CalendarDay) {
+	fmt.Println(route)
+	for _, day := range days {
+		mark := ""
+		if day == cheapest {
+			mark = " [cheapest]"
+		}
+		fmt.Printf("%s: %s%s\n", day.Date, day.Fare, mark)
+	}
 }
 
 func writeTOON(value any) error {
