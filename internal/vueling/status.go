@@ -51,6 +51,7 @@ const flightStatusScript = `(() => {
   if (state.vuelingcliDay !== '1') {
     const button = document.querySelector('button.vy-day_button[data-date="' + day + '"]');
     if (!button) {
+      if (document.querySelector('button.vy-day_button')) return {error: 'does not offer flight status for that date'};
       document.getElementById('outboundDate')?.click();
       return [];
     }
