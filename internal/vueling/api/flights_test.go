@@ -205,3 +205,20 @@ func TestRouteKindAndLocalClock(t *testing.T) {
 		t.Fatalf("localClock = %q", got)
 	}
 }
+
+func TestFlightsSumsSegmentFaresOfConnections(t *testing.T) {
+	response := readFixture(t, "flights-svq-ams-2026-11-12.json")
+	client := availabilityServer(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(response) })
+	flights, err := client.Flights(context.Background(), FlightQuery{Origin: "SVQ", Destination: "AMS", Date: time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC), Adults: 1, Currency: "EUR"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fares := map[string]string{}
+	for _, flight := range flights {
+		fares[strings.Join(flight.Flights, "+")] = flight.Fare
+	}
+	// The website shows 274 € and 282 € for these connections: 170.23 + 103.39 and 170.23 + 111.39.
+	if fares["VY1393+VY1050"] != "273.62" || fares["VY1383+VY1050"] != "281.62" {
+		t.Fatalf("connection fares = %v, want summed segment fares", fares)
+	}
+}

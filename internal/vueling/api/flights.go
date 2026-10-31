@@ -131,11 +131,12 @@ func (c *Client) oneWayFlights(ctx context.Context, token string, query FlightQu
 	if avy == nil {
 		return nil, availabilityError(response)
 	}
+	// A fare option lists one fare per segment; a connection costs their sum.
 	prices := map[string]float64{}
 	for _, entry := range avy.FaresAvailable {
 		for _, fare := range entry.Value.Fares {
 			if len(fare.PassengerFares) > 0 {
-				prices[entry.Value.FareAvailabilityKey] = fare.PassengerFares[0].AMSFareAmount
+				prices[entry.Value.FareAvailabilityKey] += fare.PassengerFares[0].AMSFareAmount
 			}
 		}
 	}
