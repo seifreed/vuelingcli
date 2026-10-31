@@ -61,7 +61,10 @@ func TestParseRenderedFlightLegs(t *testing.T) {
 			if flight.Stops != test.stops || !slices.Equal(flight.Flights, test.flights) || !slices.Equal(flight.Via, test.via) {
 				t.Fatalf("legs = %d %v %v, want %d %v %v", flight.Stops, flight.Flights, flight.Via, test.stops, test.flights, test.via)
 			}
-			direct := vueling.FilterFlights([]vueling.Flight{flight}, vueling.FlightFilter{Direct: true})
+			direct, err := vueling.FilterFlights([]vueling.Flight{flight}, vueling.FlightFilter{Direct: true})
+			if err != nil {
+				t.Fatal(err)
+			}
 			if (len(direct) == 1) != (test.stops == 0) {
 				t.Fatalf("--direct kept %d of %d stops", len(direct), test.stops)
 			}

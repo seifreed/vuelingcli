@@ -31,7 +31,10 @@ func (cli *CLI) flights(args []string) error {
 	if err != nil {
 		return err
 	}
-	flights = vueling.FilterFlights(flights, options.filter)
+	flights, err = vueling.FilterFlights(flights, options.filter)
+	if err != nil {
+		return err
+	}
 	result := map[string]any{"url": searchURL, "flights": flights}
 	var outboundNearby, returnNearby *vueling.CalendarDay
 	if options.nearby {

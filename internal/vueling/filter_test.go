@@ -2,6 +2,7 @@ package vueling
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -33,12 +34,38 @@ func TestFilterFlights(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			filtered, err := FilterFlights(flights, test.filter)
+			if err != nil {
+				t.Fatal(err)
+			}
 			var got []string
-			for _, flight := range FilterFlights(flights, test.filter) {
+			for _, flight := range filtered {
 				got = append(got, flight.Flight)
 			}
 			if !slices.Equal(got, test.want) {
 				t.Fatalf("got %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestFilterFlightsReturnsClockErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		filter  FlightFilter
+		flights []Flight
+		want    string
+	}{
+		{"outbound after", FlightFilter{After: "noon"}, nil, "after filter"},
+		{"outbound before", FlightFilter{Before: "24:00"}, nil, "before filter"},
+		{"return after", FlightFilter{ReturnAfter: "noon"}, nil, "return after filter"},
+		{"return before", FlightFilter{ReturnBefore: "24:00"}, nil, "return before filter"},
+		{"departure", FlightFilter{After: "07:00"}, []Flight{{Flight: "VY1234", Departure: "unknown"}}, "flight VY1234: departure time"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := FilterFlights(tc.flights, tc.filter)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("FilterFlights error = %v, want it to contain %q", err, tc.want)
 			}
 		})
 	}
@@ -65,10 +92,17 @@ func TestFilterFlightsOnRenderedConnections(t *testing.T) {
 		card("VY1381", "09:00", "303", "09:00 SVQ Sevilla Conexión en BCN: 2 h 40 min Ámsterdam AMS 15:55 Vueling VY1381 Vueling VY1058 SELECCIONAR VUELO POR 303 EUR 303 €"),
 		card("VY1393", "21:10", "274", "21:10 SVQ Sevilla Conexión en BCN: 11 h 15 min Ámsterdam AMS 12:40 +1 día Vueling VY1393 Vueling VY1050 SELECCIONAR VUELO POR 274 EUR 274 €"),
 	}
-	if got := FilterFlights(flights, FlightFilter{Direct: true}); len(got) != 0 {
+	got, err := FilterFlights(flights, FlightFilter{Direct: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
 		t.Fatalf("--direct kept connections: %v", got)
 	}
-	got := FilterFlights(flights, FlightFilter{Cheapest: true, Limit: 2})
+	got, err = FilterFlights(flights, FlightFilter{Cheapest: true, Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(got) != 2 || got[0].Fare != "274" || got[1].Fare != "282" {
 		t.Fatalf("cheapest limit 2 = %v", got)
 	}

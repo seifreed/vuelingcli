@@ -29,8 +29,39 @@ func ParseClock(value string) (int, error) {
 	return t.Hour()*60 + t.Minute(), nil
 }
 
+type clockWindow struct {
+	after, before       int
+	hasAfter, hasBefore bool
+}
+
+func parseClockWindow(afterValue, beforeValue string) (clockWindow, error) {
+	window := clockWindow{hasAfter: afterValue != "", hasBefore: beforeValue != ""}
+	var err error
+	if window.hasAfter {
+		window.after, err = ParseClock(afterValue)
+		if err != nil {
+			return clockWindow{}, fmt.Errorf("after filter: %w", err)
+		}
+	}
+	if window.hasBefore {
+		window.before, err = ParseClock(beforeValue)
+		if err != nil {
+			return clockWindow{}, fmt.Errorf("before filter: %w", err)
+		}
+	}
+	return window, nil
+}
+
 // FilterFlights applies f to each direction independently, keeping direction order.
-func FilterFlights(flights []Flight, f FlightFilter) []Flight {
+func FilterFlights(flights []Flight, f FlightFilter) ([]Flight, error) {
+	window, err := parseClockWindow(f.After, f.Before)
+	if err != nil {
+		return nil, err
+	}
+	returnWindow, err := parseClockWindow(f.ReturnAfter, f.ReturnBefore)
+	if err != nil {
+		return nil, fmt.Errorf("return %w", err)
+	}
 	var directions []string
 	groups := map[string][]Flight{}
 	for _, flight := range flights {
@@ -41,13 +72,17 @@ func FilterFlights(flights []Flight, f FlightFilter) []Flight {
 	}
 	result := []Flight{}
 	for _, direction := range directions {
-		window := f
+		directionWindow := window
 		if direction == "return" && (f.ReturnAfter != "" || f.ReturnBefore != "") {
-			window.After, window.Before = f.ReturnAfter, f.ReturnBefore
+			directionWindow = returnWindow
 		}
 		var kept []Flight
 		for _, flight := range groups[direction] {
-			if keepFlight(flight, window) {
+			keep, err := keepFlight(flight, f.Direct, directionWindow)
+			if err != nil {
+				return nil, fmt.Errorf("flight %s: %w", flight.Flight, err)
+			}
+			if keep {
 				kept = append(kept, flight)
 			}
 		}
@@ -59,7 +94,7 @@ func FilterFlights(flights []Flight, f FlightFilter) []Flight {
 		}
 		result = append(result, kept...)
 	}
-	return result
+	return result, nil
 }
 
 func compareFares(a, b Flight) int {
@@ -76,24 +111,24 @@ func compareFares(a, b Flight) int {
 	return cmp.Compare(x, y)
 }
 
-func keepFlight(flight Flight, f FlightFilter) bool {
-	if f.Direct && !isDirect(flight) {
-		return false
+func keepFlight(flight Flight, direct bool, window clockWindow) (bool, error) {
+	if direct && !isDirect(flight) {
+		return false, nil
 	}
-	if f.After == "" && f.Before == "" {
-		return true
+	if !window.hasAfter && !window.hasBefore {
+		return true, nil
 	}
 	departure, err := ParseClock(flight.Departure)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("departure time: %w", err)
 	}
-	if after, err := ParseClock(f.After); err == nil && departure < after {
-		return false
+	if window.hasAfter && departure < window.after {
+		return false, nil
 	}
-	if before, err := ParseClock(f.Before); err == nil && departure > before {
-		return false
+	if window.hasBefore && departure > window.before {
+		return false, nil
 	}
-	return true
+	return true, nil
 }
 
 func isDirect(flight Flight) bool {
