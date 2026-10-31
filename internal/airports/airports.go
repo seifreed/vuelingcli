@@ -7,7 +7,7 @@ type Airport struct {
 	City string `json:"city"`
 }
 
-// shortcut: this catalogue covers airports listed in Vueling's public destination pages; refresh it when that list changes.
+// shortcut: this is a local snapshot of Vueling's airport-help and destination pages; refresh it when those lists change.
 var catalogue = []Airport{
 	{"BCN", "Barcelona"}, {"MAD", "Madrid"}, {"AGP", "Málaga"}, {"ALC", "Alicante"},
 	{"BIO", "Bilbao"}, {"VLC", "Valencia"}, {"SVQ", "Sevilla"}, {"PMI", "Palma de Mallorca"},

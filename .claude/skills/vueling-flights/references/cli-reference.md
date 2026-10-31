@@ -60,7 +60,7 @@ Builds a URL for Vueling's public price calendar. It accepts IATA codes or unamb
 vueling airports [city-or-code] [--json|--toon]
 ```
 
-Searches the bundled partial airport catalogue by city name or three-letter code. Quote multi-word city names. Omitting the query prints the whole catalogue. No network request is made.
+Searches a local snapshot based on [Vueling's airport-help pages](https://help.vueling.com/hc/es/categories/19798729418513-Aeropuertos) and public destination pages by city name or three-letter code. Quote multi-word city names. Omitting the query prints the whole catalogue. It can lag route changes and makes no network request.
 
 ### `vueling version` and help
 
