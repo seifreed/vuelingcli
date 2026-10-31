@@ -22,12 +22,11 @@ func (cli *CLI) calendar(args []string) error {
 	if err != nil {
 		return err
 	}
-	reader := cli.newReader("")
 	if options.month {
-		return cli.calendarMonth(reader, link, options.returnDate, options.format)
+		return cli.calendarMonth(cli.newReader(""), link, options.returnDate, options.format)
 	}
 	if options.prices {
-		price, err := web.CalendarPricesFromPage(context.Background(), reader, link, options.returnDate)
+		price, err := web.CalendarPricesFromPage(context.Background(), cli.newReader(""), link, options.returnDate)
 		if err != nil {
 			return err
 		}
