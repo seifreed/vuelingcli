@@ -104,9 +104,8 @@ func FlightStatusFromPage(ctx context.Context, reader PageReader, flight, origin
 	default:
 		return nil, fmt.Errorf("route needs two different three-letter IATA codes")
 	}
-	u, _ := url.Parse(statusPage)
-	u.RawQuery = query.Encode()
-	output, err := readPage(ctx, reader, u.String(), flightStatusScript, 90*time.Second, "Vueling did not render flight status before the timeout")
+	pageURL := statusPage + "?" + query.Encode()
+	output, err := readPage(ctx, reader, pageURL, flightStatusScript, 90*time.Second, "Vueling did not render flight status before the timeout")
 	if err != nil {
 		return nil, err
 	}

@@ -110,11 +110,11 @@ func CalendarMonthFromPage(ctx context.Context, reader PageReader, calendarURL, 
 }
 
 func readCalendar(ctx context.Context, reader PageReader, calendarURL, returnDate string, month bool) (vueling.CalendarMonth, error) {
-	if _, err := url.ParseRequestURI(calendarURL); err != nil {
+	u, err := url.ParseRequestURI(calendarURL)
+	if err != nil {
 		return vueling.CalendarMonth{}, fmt.Errorf("invalid Vueling calendar URL: %w", err)
 	}
 	if returnDate != "" || month {
-		u, _ := url.Parse(calendarURL)
 		query := u.Query()
 		if returnDate != "" {
 			query.Set("vuelingcliReturnDate", returnDate)

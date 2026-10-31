@@ -1,6 +1,9 @@
 package browser
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestValidateDevToolsEndpoint(t *testing.T) {
 	for _, tc := range []struct {
@@ -22,5 +25,11 @@ func TestValidateDevToolsEndpoint(t *testing.T) {
 		if (err == nil) != tc.ok {
 			t.Errorf("validateDevToolsEndpoint(%q) error = %v, want ok=%v", tc.endpoint, err, tc.ok)
 		}
+	}
+}
+
+func TestCheckDevToolsEndpointRejectsMalformedURL(t *testing.T) {
+	if err := checkDevToolsEndpoint(context.Background(), "http://%"); err == nil {
+		t.Fatal("malformed DevTools endpoint was accepted")
 	}
 }

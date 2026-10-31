@@ -110,7 +110,10 @@ func readPageWithDevTools(ctx context.Context, endpoint, pageURL, pageScript str
 }
 
 func checkDevToolsEndpoint(ctx context.Context, endpoint string) error {
-	u, _ := url.Parse(endpoint)
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return fmt.Errorf("Chrome DevTools endpoint is invalid: %w", err)
+	}
 	u.Path, u.RawQuery = "/json/version", ""
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
