@@ -5,13 +5,14 @@ description: Search live Vueling prices and flight itineraries in the user's bro
 
 # Vueling flights
 
-Use Vueling's site in the user's browser for live prices and flight itineraries. Use `vueling flights` to read visible offers through the user's local Chrome session; use the other commands to resolve airports and build official calendar and flight-selection links.
+Use Vueling's site in the user's browser for live prices and flight itineraries. If the browser is already open and a computer-use/browser tool is available, read the visible offers from that page directly; this does not require changing Chrome settings. Use `vueling flights` when its local browser bridge is enabled, and use the other commands to resolve airports and build official calendar and flight-selection links.
 
 ## Boundaries
 
 - Read-only: search and inspect offers only. Never book, pay, check in, or change a reservation.
 - On macOS, `vueling flights` uses Chrome Apple Events to open a search tab and read the rendered offer cards in the current profile. Chrome requires **View > Developer > Allow JavaScript from Apple Events** for this. This permits AppleScript callers to run JavaScript in pages; never enable it without the user's explicit approval. On other systems the command attaches to a local Chrome DevTools endpoint (`http://127.0.0.1:9222` by default); `--cdp-url` selects another loopback endpoint. DevTools grants browser control, so never expose it on a network.
 - The live command reads visible page text only. Do not copy session tokens or cookies into the CLI, files, or output, and do not inspect private API requests.
+- When reading through browser UI, use its accessibility tree or rendered page text and leave fare buttons untouched. The route, times, flight number, and displayed price are visible in the offer card.
 - Build a calendar URL with `vueling calendar ... --open` or use Vueling's visible search form. Read the outbound and return calendar prices from the page, select the requested dates, and use the page's continue action only to display flight options. Report the visible date, route, time, carrier, flight number, and fare.
 - Stop before selecting a flight/fare or continuing into passenger details, seats, extras, or payment. Never book, pay, check in, or change a reservation.
 - Chrome 136+ ignores `--remote-debugging-port` for the default Chrome data directory; do not work around this by copying the user's profile. Never enable remote debugging, relaunch Chrome, or change its startup flags without the user's explicit approval. See [Chrome's remote-debugging changes](https://developer.chrome.com/blog/remote-debugging-port).
