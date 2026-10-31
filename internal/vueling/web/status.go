@@ -92,7 +92,7 @@ var (
 )
 
 // FlightStatusFromPage reads public flight-status cards for one VY flight, or for a route when flight is empty.
-func FlightStatusFromPage(ctx context.Context, reader vueling.PageReader, flight, origin, destination string, date time.Time) ([]vueling.FlightStatus, error) {
+func FlightStatusFromPage(ctx context.Context, reader PageReader, flight, origin, destination string, date time.Time) ([]vueling.FlightStatus, error) {
 	query := url.Values{"vuelingcliDay": {fmt.Sprintf("%d-%d", date.Day(), int(date.Month())-1)}}
 	switch {
 	case statusFlightRe.MatchString(flight):

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/seifreed/vuelingcli/internal/vueling"
+	"github.com/seifreed/vuelingcli/internal/vueling/web"
 )
 
 type testPageReader struct{}
@@ -21,7 +22,7 @@ func (testPageReader) ReadPage(context.Context, string, string) ([]byte, error) 
 
 func newTestCLI() (*CLI, *bytes.Buffer, *bytes.Buffer) {
 	stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
-	readerFactory := func(string) vueling.PageReader { return testPageReader{} }
+	readerFactory := func(string) web.PageReader { return testPageReader{} }
 	return New("test-version", stdout, stderr, readerFactory), stdout, stderr
 }
 

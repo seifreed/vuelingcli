@@ -127,7 +127,7 @@ func (cli *CLI) calendar(args []string) error {
 	return err
 }
 
-func (cli *CLI) calendarMonth(reader vueling.PageReader, link, returnDate, format string) error {
+func (cli *CLI) calendarMonth(reader web.PageReader, link, returnDate, format string) error {
 	calendar, err := web.CalendarMonthFromPage(context.Background(), reader, link, returnDate)
 	if err != nil {
 		return err

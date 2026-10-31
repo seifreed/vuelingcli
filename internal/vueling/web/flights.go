@@ -99,17 +99,17 @@ const renderedPriceScript = `(() => {
 })()`
 
 // CalendarPricesFromPage reads the requested outbound fare from the public rendered calendar.
-func CalendarPricesFromPage(ctx context.Context, reader vueling.PageReader, calendarURL, returnDate string) (map[string]string, error) {
+func CalendarPricesFromPage(ctx context.Context, reader PageReader, calendarURL, returnDate string) (map[string]string, error) {
 	calendar, err := readCalendar(ctx, reader, calendarURL, returnDate, false)
 	return calendar.Price, err
 }
 
 // CalendarMonthFromPage also reads every visible day fare of the outbound and return months.
-func CalendarMonthFromPage(ctx context.Context, reader vueling.PageReader, calendarURL, returnDate string) (vueling.CalendarMonth, error) {
+func CalendarMonthFromPage(ctx context.Context, reader PageReader, calendarURL, returnDate string) (vueling.CalendarMonth, error) {
 	return readCalendar(ctx, reader, calendarURL, returnDate, true)
 }
 
-func readCalendar(ctx context.Context, reader vueling.PageReader, calendarURL, returnDate string, month bool) (vueling.CalendarMonth, error) {
+func readCalendar(ctx context.Context, reader PageReader, calendarURL, returnDate string, month bool) (vueling.CalendarMonth, error) {
 	if _, err := url.ParseRequestURI(calendarURL); err != nil {
 		return vueling.CalendarMonth{}, fmt.Errorf("invalid Vueling calendar URL: %w", err)
 	}
@@ -168,7 +168,7 @@ func decodeCalendar(output []byte) (vueling.CalendarMonth, error) {
 
 // FlightsFromPage reads only visible result-card text. It never
 // reads cookies, storage, request headers, or tokens.
-func FlightsFromPage(ctx context.Context, reader vueling.PageReader, searchURL, outboundDate, returnDate string) ([]vueling.Flight, error) {
+func FlightsFromPage(ctx context.Context, reader PageReader, searchURL, outboundDate, returnDate string) ([]vueling.Flight, error) {
 	if _, err := url.ParseRequestURI(searchURL); err != nil {
 		return nil, fmt.Errorf("invalid Vueling search URL: %w", err)
 	}

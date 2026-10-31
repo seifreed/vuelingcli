@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/seifreed/vuelingcli/internal/vueling"
+	"github.com/seifreed/vuelingcli/internal/vueling/web"
 )
 
 // PageReaderFactory creates a reader for the requested browser endpoint.
-type PageReaderFactory func(endpoint string) vueling.PageReader
+type PageReaderFactory func(endpoint string) web.PageReader
 
 // CLI runs commands with caller-provided output and browser dependencies.
 type CLI struct {

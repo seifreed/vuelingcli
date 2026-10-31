@@ -224,7 +224,7 @@ func connectionSummary(flight vueling.Flight) string {
 // nearbyFares reads the cheapest calendar day of the outbound and return months,
 // warning on stderr instead of failing because the flight offers are the primary output.
 
-func (cli *CLI) nearbyFares(reader vueling.PageReader, origin, destination string, date, returnDate time.Time) (*vueling.CalendarDay, *vueling.CalendarDay) {
+func (cli *CLI) nearbyFares(reader web.PageReader, origin, destination string, date, returnDate time.Time) (*vueling.CalendarDay, *vueling.CalendarDay) {
 	link, err := vueling.CalendarURL(origin, destination, date)
 	if err != nil {
 		_, _ = fmt.Fprintf(cli.stderr, "flights: warning: nearby fares unavailable: %v\n", err)
