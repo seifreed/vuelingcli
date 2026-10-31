@@ -18,11 +18,11 @@ A weekday matching today means the following week.
 ### `vueling search` and `vueling link`
 
 ```text
-vueling search <origin> <destination> --date <date> [options]
-vueling link <origin> <destination> --date <date> [options]
+vueling search <origin city-or-IATA> <destination city-or-IATA> --date <date> [options]
+vueling link <origin city-or-IATA> <destination city-or-IATA> --date <date> [options]
 ```
 
-Both commands build `https://tickets.vueling.com/booking` links. Airport values must be different three-letter IATA codes.
+Both commands build `https://tickets.vueling.com/booking` links. Use different three-letter IATA codes or an unambiguous city in the bundled airport catalogue. Quote multi-word city names, such as `"Palma de Mallorca"`. If a city matches several airports, use its IATA code.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
@@ -49,10 +49,10 @@ Discount types: `0` none, `1` island/Ceuta resident, `2` large family, `3` speci
 ### `vueling calendar`
 
 ```text
-vueling calendar <origin> <destination> --date <date> [--open] [--json|--toon]
+vueling calendar <origin city-or-IATA> <destination city-or-IATA> --date <date> [--open] [--json|--toon]
 ```
 
-Builds a URL for Vueling's public price calendar. It accepts only the route, departure date, browser-open, and output-format options shown above; it does not query prices itself.
+Builds a URL for Vueling's public price calendar. It accepts IATA codes or unambiguous city names from the bundled catalogue (quote multi-word names), plus departure date, browser-open, and output-format options; it does not query prices itself.
 
 ### `vueling airports`
 

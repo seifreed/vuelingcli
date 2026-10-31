@@ -21,7 +21,7 @@ go run ./cmd/vueling version
 go run ./cmd/vueling calendar BCN MLA --date 14/01/2027
 ```
 
-`calendar` builds Vueling's public price-calendar URL. It accepts `YYYY-MM-DD`, `DD/MM/YYYY`, `today`, `tomorrow`, `+N`, or a weekday name in English or Spanish; add `--open` to open it in your default browser. Use `--json` or `--toon` for structured output. `search` and `link` build the same official flight-selection URL from route, date, and passenger options; add `--open` to open it in your default browser and see current offers. They support `--discount`, `--culture`, `--currency`, `--flight`, `--fare-basis`, `--return-flight`, `--return-fare-basis`, and `--token` for extended links. These commands do not fetch or rank live prices. `airports` searches a local catalogue of Vueling airports and supports `--json` or `--toon`; it is not the full route network.
+`calendar` builds Vueling's public price-calendar URL. It accepts `YYYY-MM-DD`, `DD/MM/YYYY`, `today`, `tomorrow`, `+N`, or a weekday name in English or Spanish; add `--open` to open it in your default browser. Use `--json` or `--toon` for structured output. `search` and `link` build the same official flight-selection URL from route, date, and passenger options; routes accept IATA codes or unambiguous city names from the local catalogue (quote multi-word names). Add `--open` to open the link in your default browser and see current offers. They support `--discount`, `--culture`, `--currency`, `--flight`, `--fare-basis`, `--return-flight`, `--return-fare-basis`, and `--token` for extended links. These commands do not fetch or rank live prices. `airports` searches a local catalogue of Vueling airports and supports `--json` or `--toon`; it is not the full route network.
 
 ## Skill para agentes
 

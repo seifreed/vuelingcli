@@ -28,7 +28,7 @@ func main() {
 		fmt.Printf("vueling %s\n", version)
 	case "search":
 		if len(os.Args) > 2 && (os.Args[2] == "--help" || os.Args[2] == "-h") {
-			fmt.Print("Build an official Vueling flight-search link. Live prices are shown on Vueling's website.\n\nUsage:\n  vueling search <origin> <destination> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--open] [--json|--toon]\n")
+			fmt.Print("Build an official Vueling flight-search link. Live prices are shown on Vueling's website.\n\nUsage:\n  vueling search <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--open] [--json|--toon]\n")
 			return
 		}
 		if err := flightLink(os.Args[2:]); err != nil {
@@ -98,7 +98,7 @@ func airportSearch(args []string) error {
 
 func flightLink(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Build a Vueling flight-selection link\n\nUsage:\n  vueling link <origin> <destination> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--open] [--json|--toon]\n")
+		fmt.Print("Build a Vueling flight-selection link\n\nUsage:\n  vueling link <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--open] [--json|--toon]\n")
 		return nil
 	}
 	values := map[string]string{}
@@ -138,7 +138,15 @@ func flightLink(args []string) error {
 		positional = append(positional, a)
 	}
 	if len(positional) != 2 || values["date"] == "" {
-		return fmt.Errorf("usage: vueling link <origin> <destination> --date <date> [options]")
+		return fmt.Errorf("usage: vueling link <origin city or IATA> <destination city or IATA> --date <date> [options]")
+	}
+	origin, err := resolveAirport(positional[0])
+	if err != nil {
+		return fmt.Errorf("origin: %w", err)
+	}
+	destination, err := resolveAirport(positional[1])
+	if err != nil {
+		return fmt.Errorf("destination: %w", err)
 	}
 	parseDate := func(key string) (time.Time, error) {
 		if values[key] == "" {
@@ -176,7 +184,7 @@ func flightLink(args []string) error {
 	if err != nil {
 		return fmt.Errorf("invalid --discount: %w", err)
 	}
-	link, err := vueling.FlightURL(vueling.LinkOptions{Origin: positional[0], Destination: positional[1], Date: date, ReturnDate: returnDate, Adults: adults, Children: children, Infants: infants, Discount: discount, Culture: values["culture"], Currency: values["currency"], OutboundFlight: values["flight"], OutboundFareBasis: values["fare-basis"], ReturnFlight: values["return-flight"], ReturnFareBasis: values["return-fare-basis"], METToken: values["token"]})
+	link, err := vueling.FlightURL(vueling.LinkOptions{Origin: origin, Destination: destination, Date: date, ReturnDate: returnDate, Adults: adults, Children: children, Infants: infants, Discount: discount, Culture: values["culture"], Currency: values["currency"], OutboundFlight: values["flight"], OutboundFareBasis: values["fare-basis"], ReturnFlight: values["return-flight"], ReturnFareBasis: values["return-fare-basis"], METToken: values["token"]})
 	if err != nil {
 		return err
 	}
@@ -193,6 +201,26 @@ func flightLink(args []string) error {
 	}
 	fmt.Println(link)
 	return nil
+}
+
+func resolveAirport(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if len(value) == 3 {
+		return strings.ToUpper(value), nil
+	}
+	matches := airports.Search(value)
+	switch len(matches) {
+	case 1:
+		return matches[0].Code, nil
+	case 0:
+		return "", fmt.Errorf("%q is not in the airport catalogue; use an IATA code or 'vueling airports'", value)
+	default:
+		codes := make([]string, len(matches))
+		for i, match := range matches {
+			codes[i] = match.Code
+		}
+		return "", fmt.Errorf("%q matches multiple airports (%s); use an IATA code", value, strings.Join(codes, ", "))
+	}
 }
 
 func openURL(link string) error {
@@ -215,7 +243,7 @@ func openURL(link string) error {
 
 func calendar(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Build a Vueling price-calendar link\n\nUsage:\n  vueling calendar <origin IATA> <destination IATA> --date <date> [--open] [--json|--toon]\n")
+		fmt.Print("Build a Vueling price-calendar link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--open] [--json|--toon]\n")
 		return nil
 	}
 	var positional []string
@@ -246,13 +274,21 @@ func calendar(args []string) error {
 		}
 	}
 	if len(positional) != 2 || dateValue == "" {
-		return fmt.Errorf("usage: vueling calendar <origin IATA> <destination IATA> --date <date> [--open] [--json|--toon]")
+		return fmt.Errorf("usage: vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--open] [--json|--toon]")
+	}
+	origin, err := resolveAirport(positional[0])
+	if err != nil {
+		return fmt.Errorf("origin: %w", err)
+	}
+	destination, err := resolveAirport(positional[1])
+	if err != nil {
+		return fmt.Errorf("destination: %w", err)
 	}
 	date, err := search.ParseDate(dateValue, time.Now())
 	if err != nil {
 		return err
 	}
-	link, err := vueling.CalendarURL(positional[0], positional[1], date)
+	link, err := vueling.CalendarURL(origin, destination, date)
 	if err != nil {
 		return err
 	}
