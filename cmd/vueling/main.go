@@ -71,10 +71,10 @@ func main() {
 
 func flights(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Read live flight offers from your Chrome session\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n\nChrome remote debugging must be enabled for the profile holding your Vueling session. This command reads rendered offers only; it never selects a fare.\n")
+		fmt.Print("Read live flight offers from your Chrome session\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n\nOn macOS, enable View > Developer > Allow JavaScript from Apple Events in Chrome. Other systems need a local Chrome DevTools endpoint. This command reads rendered offers only; it never selects a fare.\n")
 		return nil
 	}
-	values := map[string]string{"cdp-url": "http://127.0.0.1:9222"}
+	values := map[string]string{}
 	var positional []string
 	format := ""
 	for i := 0; i < len(args); i++ {

@@ -2,11 +2,14 @@ package vueling
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -62,39 +65,51 @@ const renderedFlightsScript = `(() => {
 // FlightsFromBrowser reads only visible result-card text from a local Chrome
 // DevTools session. It never reads cookies, storage, request headers, or tokens.
 func FlightsFromBrowser(ctx context.Context, endpoint, searchURL, outboundDate, returnDate string) ([]Flight, error) {
-	if err := validateDevToolsEndpoint(endpoint); err != nil {
-		return nil, err
-	}
-	if err := checkDevToolsEndpoint(endpoint); err != nil {
-		return nil, err
-	}
 	if _, err := url.ParseRequestURI(searchURL); err != nil {
 		return nil, fmt.Errorf("invalid Vueling search URL: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
-	allocator, stopAllocator := chromedp.NewRemoteAllocator(ctx, endpoint)
-	defer stopAllocator()
-	tab, stopTab := chromedp.NewContext(allocator)
-	defer stopTab()
-
-	if err := chromedp.Run(tab, chromedp.Navigate(searchURL)); err != nil {
-		return nil, fmt.Errorf("open Vueling in Chrome: %w", err)
-	}
 	var cards []renderedFlight
-	deadline := time.Now().Add(75 * time.Second)
-	for time.Now().Before(deadline) {
-		if err := chromedp.Run(tab, chromedp.Evaluate(renderedFlightsScript, &cards)); err != nil {
-			return nil, fmt.Errorf("read rendered Vueling results: %w", err)
+	if endpoint == "" && runtime.GOOS == "darwin" {
+		output, err := readFlightsWithAppleEvents(ctx, searchURL)
+		if err != nil {
+			return nil, err
 		}
-		if len(cards) > 0 {
-			break
+		if err := json.Unmarshal(output, &cards); err != nil {
+			return nil, fmt.Errorf("could not decode rendered Vueling offers")
 		}
-		select {
-		case <-tab.Done():
-			return nil, fmt.Errorf("Chrome closed before Vueling results loaded")
-		case <-time.After(500 * time.Millisecond):
+	} else {
+		if endpoint == "" {
+			endpoint = "http://127.0.0.1:9222"
+		}
+		if err := validateDevToolsEndpoint(endpoint); err != nil {
+			return nil, err
+		}
+		if err := checkDevToolsEndpoint(endpoint); err != nil {
+			return nil, err
+		}
+		allocator, stopAllocator := chromedp.NewRemoteAllocator(ctx, endpoint)
+		defer stopAllocator()
+		tab, stopTab := chromedp.NewContext(allocator)
+		defer stopTab()
+		if err := chromedp.Run(tab, chromedp.Navigate(searchURL)); err != nil {
+			return nil, fmt.Errorf("open Vueling in Chrome: %w", err)
+		}
+		deadline := time.Now().Add(75 * time.Second)
+		for time.Now().Before(deadline) {
+			if err := chromedp.Run(tab, chromedp.Evaluate(renderedFlightsScript, &cards)); err != nil {
+				return nil, fmt.Errorf("read rendered Vueling results: %w", err)
+			}
+			if len(cards) > 0 {
+				break
+			}
+			select {
+			case <-tab.Done():
+				return nil, fmt.Errorf("Chrome closed before Vueling results loaded")
+			case <-time.After(500 * time.Millisecond):
+			}
 		}
 	}
 	if len(cards) == 0 {
@@ -110,6 +125,40 @@ func FlightsFromBrowser(ctx context.Context, endpoint, searchURL, outboundDate, 
 		flights = append(flights, flight)
 	}
 	return flights, nil
+}
+
+func readFlightsWithAppleEvents(ctx context.Context, searchURL string) ([]byte, error) {
+	const script = `on run argv
+	set searchURL to item 1 of argv
+	set pageScript to item 2 of argv
+	tell application "Google Chrome"
+		if (count of windows) is 0 then error "VUELING_NO_CHROME_WINDOW"
+		set resultTab to make new tab at end of tabs of front window with properties {URL:searchURL}
+		repeat 150 times
+			try
+				set resultJSON to execute resultTab javascript ("JSON.stringify(" & pageScript & ")")
+				if resultJSON is not missing value and resultJSON is not "[]" then return resultJSON
+			on error errorText
+				if errorText contains "Executing JavaScript through AppleScript is turned off" then error "VUELING_JS_DISABLED"
+			end try
+			delay 0.5
+		end repeat
+		error "VUELING_NO_OFFERS"
+	end tell
+end run`
+	cmd := exec.CommandContext(ctx, "osascript", "-e", script, searchURL, renderedFlightsScript)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		message := strings.ToLower(string(output))
+		if strings.Contains(message, "vueling_js_disabled") {
+			return nil, fmt.Errorf("Chrome blocks JavaScript from Apple Events; enable View > Developer > Allow JavaScript from Apple Events, then retry")
+		}
+		if strings.Contains(message, "vueling_no_offers") {
+			return nil, fmt.Errorf("Vueling did not render flight offers; check the browser session and any CAPTCHA")
+		}
+		return nil, fmt.Errorf("could not read the Vueling tab through Chrome Apple Events: %w", err)
+	}
+	return []byte(strings.TrimSpace(string(output))), nil
 }
 
 func checkDevToolsEndpoint(endpoint string) error {
