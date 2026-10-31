@@ -1,18 +1,20 @@
 ---
 name: vueling-flights
-description: Search Vueling flights in the browser, open its public price calendar, or build flight-selection links with the vueling CLI.
+description: Search live Vueling prices and flight itineraries in the user's browser session, or build flight-selection links with the vueling CLI.
 ---
 
 # Vueling flights
 
-Use Vueling's site in the browser for live flight results. Use `vueling` to build the public calendar and flight-selection links.
+Use Vueling's site in the user's browser for live prices and flight itineraries. Use `vueling` to resolve airports and build official calendar and flight-selection links.
 
 ## Boundaries
 
 - Read-only: search and inspect offers only. Never book, pay, check in, or change a reservation.
-- The CLI does not retrieve live prices or availability. For a live search, open the official Vueling site in the available browser and report only the results shown there.
-- Use the browser UI or a `vueling link` URL to search. Do not copy session tokens or call undocumented private APIs from the CLI. As of 2026-10-31, Vueling's former Flight Calendar deeplink reference returns 404, and no accessible public request contract for live prices has been found; direct requests tried from the CLI returned HTTP 403.
-- Stop if the site requires a CAPTCHA or login the user has not completed. Never select a fare, book, pay, or change a reservation.
+- For a live search, use the already available browser session and read prices and itineraries from Vueling's rendered page. Do not copy session tokens or cookies into the CLI, files, or output.
+- Build a calendar URL with `vueling calendar ... --open` or use Vueling's visible search form. Read the outbound and return calendar prices from the page, select the requested dates, and use the page's continue action only to display flight options. Report the visible date, route, time, carrier, flight number, and fare.
+- Stop before selecting a flight/fare or continuing into passenger details, seats, extras, or payment. Never book, pay, check in, or change a reservation.
+- The CLI itself currently creates links and does not retrieve live prices or availability. Use the browser for live results; do not call undocumented private APIs from the CLI.
+- Stop if the site requires a CAPTCHA or login the user has not completed.
 - Ask for origin, destination, dates, and passenger counts when missing. Do not infer travel dates.
 - Prefer `--json` for programmatic workflows and keep diagnostics on stderr.
 - Do not request or store account passwords or payment details.
