@@ -35,7 +35,7 @@ func (cli *CLI) WithAPI(client *api.Client) *CLI {
 // Run executes one command and returns its process exit code.
 func (cli *CLI) Run(args []string) int {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		if _, err := fmt.Fprint(cli.stdout, "vueling — unofficial read-only Vueling CLI\n\nUsage:\n  vueling <command> [options]\n\nCommands:\n  flights     Read live flight offers from Chrome\n  status      Read a flight's live status from Chrome\n  search      Build an official flight-search link\n  calendar    Build a Vueling price-calendar link\n  link        Build a flight-selection link\n  airports    Search Vueling airport codes\n  help        Show this help\n  version     Show version\n\nRun 'vueling <command> --help' for command options.\n"); err != nil {
+		if _, err := fmt.Fprint(cli.stdout, "vueling — unofficial read-only Vueling CLI\n\nUsage:\n  vueling <command> [options]\n\nCommands:\n  flights     Read a day's flight offers from Vueling\n  status      Read a flight's live status from Chrome\n  search      Build an official flight-search link\n  calendar    Build a Vueling price-calendar link\n  link        Build a flight-selection link\n  airports    Search Vueling airport codes\n  help        Show this help\n  version     Show version\n\nRun 'vueling <command> --help' for command options.\n"); err != nil {
 			return 2
 		}
 		return 0

@@ -14,7 +14,7 @@ type flightOptions struct {
 	adults, children, infants  int
 	currency, endpoint, format string
 	filter                     vueling.FlightFilter
-	nearby                     bool
+	nearby, browser            bool
 }
 
 func parseFlightOptions(args []string) (flightOptions, error) {
@@ -22,7 +22,7 @@ func parseFlightOptions(args []string) (flightOptions, error) {
 	var positional []string
 	format := ""
 	var filter vueling.FlightFilter
-	nearby := false
+	nearby, browser := false, false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--json" || a == "--toon" {
@@ -33,8 +33,9 @@ func parseFlightOptions(args []string) (flightOptions, error) {
 			format = requested
 			continue
 		}
-		if a == "--nearby" {
-			nearby = true
+		if a == "--nearby" || a == "--browser" {
+			nearby = nearby || a == "--nearby"
+			browser = browser || a == "--browser"
 			continue
 		}
 		if a == "--cheapest" || a == "--direct" {
@@ -140,6 +141,6 @@ func parseFlightOptions(args []string) (flightOptions, error) {
 	return flightOptions{
 		origin: origin, destination: destination, date: date, returnDate: returnDate,
 		adults: adults, children: children, infants: infants, currency: currency,
-		endpoint: values["cdp-url"], filter: filter, nearby: nearby, format: format,
+		endpoint: values["cdp-url"], filter: filter, nearby: nearby, browser: browser, format: format,
 	}, nil
 }
