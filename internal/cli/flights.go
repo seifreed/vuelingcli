@@ -38,7 +38,7 @@ func (cli *CLI) flights(args []string) error {
 	result := map[string]any{"url": searchURL, "flights": flights}
 	var outboundNearby, returnNearby *vueling.CalendarDay
 	if options.nearby {
-		outboundNearby, returnNearby, err = cli.nearbyFares(reader, false, options.origin, options.destination, options.date, options.returnDate)
+		outboundNearby, returnNearby, err = cli.nearbyFares(reader, options.browser, options.origin, options.destination, options.date, options.returnDate)
 		if err != nil {
 			return err
 		}

@@ -60,7 +60,7 @@ func (c *Client) anonymousToken(ctx context.Context) (string, error) {
 	return session.AccessToken, nil
 }
 
-type availabilityResponse struct {
+type journeyAvailabilityResponse struct {
 	Data struct {
 		AMSAvy *struct {
 			CurrencyCode string `json:"currencyCode"`
@@ -123,7 +123,7 @@ type journey struct {
 }
 
 func (c *Client) oneWayFlights(ctx context.Context, token string, query FlightQuery, direction, origin, destination string, date time.Time) ([]vueling.Flight, error) {
-	var response availabilityResponse
+	var response journeyAvailabilityResponse
 	if err := c.postJSON(ctx, c.AMS+"/avy/v1/graphql", ticketsOrigin, token, availabilityRequest(query, origin, destination, date), &response); err != nil {
 		return nil, fmt.Errorf("read Vueling %s flights: %w", direction, err)
 	}
@@ -187,7 +187,7 @@ func availabilityRequest(query FlightQuery, origin, destination string, date tim
 	}
 }
 
-func availabilityError(response availabilityResponse) error {
+func availabilityError(response journeyAvailabilityResponse) error {
 	var messages []string
 	for _, e := range response.Errors {
 		if e.Message != "" {

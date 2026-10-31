@@ -20,6 +20,14 @@ type routeFares map[string]map[time.Time]float64
 func newAPICLI(t *testing.T, fares routeFares, reader web.PageReader) (*CLI, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/Auth"):
+			_ = json.NewEncoder(w).Encode(map[string]string{"accessToken": "jwt"})
+			return
+		case strings.HasSuffix(r.URL.Path, "/graphql"):
+			_, _ = w.Write([]byte(twoJourneys))
+			return
+		}
 		route, ok := fares[r.URL.Query().Get("originCode")+r.URL.Query().Get("destinationCode")]
 		if !ok {
 			http.Error(w, "unknown route", http.StatusNotFound)
@@ -37,7 +45,7 @@ func newAPICLI(t *testing.T, fares routeFares, reader web.PageReader) (*CLI, *by
 	t.Cleanup(server.Close)
 	stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
 	cli := New("test", stdout, stderr, func(string) web.PageReader { return reader })
-	return cli.WithAPI(&api.Client{HTTP: server.Client(), APIW: server.URL}), stdout, stderr
+	return cli.WithAPI(&api.Client{HTTP: server.Client(), APIW: server.URL, AMS: server.URL}), stdout, stderr
 }
 
 func calendarTestDates() (departure, sameMonth, nextMonth, returnDate time.Time) {
@@ -135,8 +143,8 @@ func TestFlightsNearbyReadsAPI(t *testing.T) {
 	if want := "cheapest nearby: " + sameMonth.Format("02/01/2006") + " from 30 €\n"; !strings.HasSuffix(stdout.String(), want) || stderr.Len() != 0 {
 		t.Fatalf("flights printed %q (stderr %q), want suffix %q", stdout, stderr, want)
 	}
-	if reader.calls != 1 {
-		t.Fatalf("flights read %d pages, want only the offers page", reader.calls)
+	if reader.calls != 0 {
+		t.Fatalf("flights read %d Chrome pages, want none", reader.calls)
 	}
 }
 
