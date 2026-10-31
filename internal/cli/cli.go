@@ -18,6 +18,7 @@ import (
 	"github.com/seifreed/vuelingcli/internal/airports"
 	"github.com/seifreed/vuelingcli/internal/search"
 	"github.com/seifreed/vuelingcli/internal/vueling"
+	"github.com/seifreed/vuelingcli/internal/vueling/web"
 	toon "github.com/toon-format/toon-go"
 )
 
@@ -242,7 +243,7 @@ func (cli *CLI) flights(args []string) error {
 		return err
 	}
 	reader := cli.newReader(values["cdp-url"])
-	flights, err := vueling.FlightsFromPage(context.Background(), reader, searchURL, date.Format(time.DateOnly), returnDate.Format(time.DateOnly))
+	flights, err := web.FlightsFromPage(context.Background(), reader, searchURL, date.Format(time.DateOnly), returnDate.Format(time.DateOnly))
 	if err != nil {
 		return err
 	}
@@ -316,7 +317,7 @@ func (cli *CLI) nearbyFares(reader vueling.PageReader, origin, destination strin
 	if !returnDate.IsZero() {
 		returnValue = returnDate.Format("02/01/2006")
 	}
-	calendar, err := vueling.CalendarMonthFromPage(context.Background(), reader, link, returnValue)
+	calendar, err := web.CalendarMonthFromPage(context.Background(), reader, link, returnValue)
 	if err != nil {
 		_, _ = fmt.Fprintf(cli.stderr, "flights: warning: nearby fares unavailable: %v\n", err)
 		return nil, nil
@@ -413,10 +414,10 @@ func (cli *CLI) flightStatus(args []string) error {
 	reader := cli.newReader(endpoint)
 	if watch > 0 {
 		return cli.watchFlightStatus(time.Duration(watch)*time.Minute, format == "json", func(ctx context.Context) ([]vueling.FlightStatus, error) {
-			return vueling.FlightStatusFromPage(ctx, reader, flight, origin, destination, date)
+			return web.FlightStatusFromPage(ctx, reader, flight, origin, destination, date)
 		})
 	}
-	statuses, err := vueling.FlightStatusFromPage(context.Background(), reader, flight, origin, destination, date)
+	statuses, err := web.FlightStatusFromPage(context.Background(), reader, flight, origin, destination, date)
 	if err != nil {
 		return err
 	}
@@ -779,7 +780,7 @@ func (cli *CLI) calendar(args []string) error {
 		return cli.calendarMonth(reader, link, returnDate, format)
 	}
 	if prices {
-		price, err := vueling.CalendarPricesFromPage(context.Background(), reader, link, returnDate)
+		price, err := web.CalendarPricesFromPage(context.Background(), reader, link, returnDate)
 		if err != nil {
 			return err
 		}
@@ -809,7 +810,7 @@ func (cli *CLI) calendar(args []string) error {
 }
 
 func (cli *CLI) calendarMonth(reader vueling.PageReader, link, returnDate, format string) error {
-	calendar, err := vueling.CalendarMonthFromPage(context.Background(), reader, link, returnDate)
+	calendar, err := web.CalendarMonthFromPage(context.Background(), reader, link, returnDate)
 	if err != nil {
 		return err
 	}

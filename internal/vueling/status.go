@@ -1,17 +1,6 @@
 package vueling
 
-import (
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"net/url"
-	"regexp"
-	"strings"
-	"time"
-)
-
-const statusPage = "https://www.vueling.com/es/servicios-vueling/informacion-de-vuelos/estado-de-vuelos"
+import "strings"
 
 // FlightStatus is one public flight-status card.
 type FlightStatus struct {
@@ -25,157 +14,17 @@ type FlightStatus struct {
 	Details     string `json:"details"`
 }
 
-// The status form has no deep link, so the script fills it step by step on each poll.
-const flightStatusScript = `(() => {
-  const params = new URL(location.href).searchParams;
-  const flight = (params.get('vuelingcliFlight') || '').toUpperCase();
-  const route = [['originInput', params.get('vuelingcliFrom') || ''], ['destinationInput', params.get('vuelingcliTo') || '']];
-  const day = params.get('vuelingcliDay') || '';
-  const state = document.body.dataset;
-  const setValue = (input, value) => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
-    input.dispatchEvent(new Event('input', {bubbles: true}));
-    input.dispatchEvent(new Event('change', {bubbles: true}));
-  };
-  const cards = [...document.querySelectorAll('.flight-cards__item')].map(c => (c.innerText || '').split('\n').map(s => s.trim()).filter(Boolean)).filter(c => !flight || c.includes(flight));
-  if (state.vuelingcliSubmitted === '1') {
-    if (!cards.length && document.querySelector('vy-spa-wrapper-flight-status .vy-alert-message--danger')) return {error: 'found no flight status for that search and date'};
-    return cards;
-  }
-  if (flight) {
-    const input = document.getElementById('flightNumberInput');
-    if (!input) {
-      document.getElementById('TabSearcherFlightStatusByFlightNumberlabel')?.click();
-      return [];
-    }
-    if (input.value !== flight) {
-      setValue(input, flight);
-      return [];
-    }
-  } else {
-    for (const [id, code] of route) {
-      if (state[id] === '1') continue;
-      const input = document.getElementById(id);
-      if (!input) {
-        document.getElementById('TabSearcherFlightStatusByStationlabel')?.click();
-        return [];
-      }
-      const option = [...document.querySelectorAll('button.vy-list-dropdown_item')].find(b => b.offsetParent && new RegExp('\\b' + code + '$').test((b.innerText || '').trim()));
-      if (option && input.value === code) {
-        option.click();
-        state[id] = '1';
-      } else if (Number(state[id + 'Polls'] || 0) % 6 === 0) {
-        input.click();
-        input.focus();
-        setValue(input, '');
-        setValue(input, code);
-      }
-      state[id + 'Polls'] = Number(state[id + 'Polls'] || 0) + 1;
-      return [];
-    }
-  }
-  if (state.vuelingcliDay !== '1') {
-    const button = document.querySelector('button.vy-day_button[data-date="' + day + '"]');
-    if (!button) {
-      if (document.querySelector('button.vy-day_button')) return {error: 'does not offer flight status for that date'};
-      document.getElementById('outboundDate')?.click();
-      return [];
-    }
-    if (button.getAttribute('aria-disabled') === 'true') return {error: 'does not offer flight status for that date'};
-    button.click();
-    state.vuelingcliDay = '1';
-    return [];
-  }
-  const search = [...document.querySelectorAll('button')].find(b => b.offsetParent && /^BUSCAR/i.test((b.innerText || '').trim()));
-  if (search) {
-    search.click();
-    state.vuelingcliSubmitted = '1';
-  }
-  return [];
-})()`
-
-var (
-	clockPattern   = regexp.MustCompile(`^\d{1,2}:\d{2}$`)
-	originPattern  = regexp.MustCompile(`^([A-Z]{3})\p{Lu}\p{Ll}`)
-	destinPattern  = regexp.MustCompile(`[\p{Ll})]([A-Z]{3})$`)
-	statusFlightRe = regexp.MustCompile(`^VY\d{2,4}[A-Z]?$`)
-)
-
-// FlightStatusFromPage reads public flight-status cards for one VY flight, or for a route when flight is empty.
-func FlightStatusFromPage(ctx context.Context, reader PageReader, flight, origin, destination string, date time.Time) ([]FlightStatus, error) {
-	query := url.Values{"vuelingcliDay": {fmt.Sprintf("%d-%d", date.Day(), int(date.Month())-1)}}
-	switch {
-	case statusFlightRe.MatchString(flight):
-		query.Set("vuelingcliFlight", flight)
-	case flight != "":
-		return nil, fmt.Errorf("flight must be VY followed by its number, such as VY1158 or VY392D")
-	case validIATACode(origin) && validIATACode(destination) && origin != destination:
-		query.Set("vuelingcliFrom", origin)
-		query.Set("vuelingcliTo", destination)
-	default:
-		return nil, fmt.Errorf("route needs two different three-letter IATA codes")
-	}
-	u, _ := url.Parse(statusPage)
-	u.RawQuery = query.Encode()
-	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
-	defer cancel()
-	output, err := reader.ReadPage(ctx, u.String(), flightStatusScript)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("Vueling did not render flight status before the timeout: %w", err)
-		}
-		return nil, err
-	}
-	var failure struct{ Error string }
-	if json.Unmarshal(output, &failure) == nil && failure.Error != "" {
-		return nil, fmt.Errorf("Vueling %s", failure.Error)
-	}
-	var cards [][]string
-	if err := json.Unmarshal(output, &cards); err != nil {
-		return nil, fmt.Errorf("could not decode the rendered Vueling flight status")
-	}
-	statuses := make([]FlightStatus, 0, len(cards))
-	for _, card := range cards {
-		statuses = append(statuses, parseStatusCard(card, date))
-	}
-	return statuses, nil
-}
-
-func parseStatusCard(lines []string, date time.Time) FlightStatus {
-	status := FlightStatus{Date: date.Format("2006-01-02"), Details: strings.Join(lines, " ")}
-	if len(lines) > 0 {
-		status.Status = lines[0]
-	}
-	var times []string
-	for _, line := range lines {
-		switch {
-		case statusFlightRe.MatchString(line):
-			status.Flight = line
-		case clockPattern.MatchString(line):
-			times = append(times, line)
-		case status.Origin == "" && originPattern.MatchString(line):
-			status.Origin = originPattern.FindStringSubmatch(line)[1]
-		case destinPattern.MatchString(line):
-			status.Destination = destinPattern.FindStringSubmatch(line)[1]
-		}
-	}
-	if len(times) > 0 {
-		status.Departure, status.Arrival = times[0], times[len(times)-1]
-	}
-	return status
-}
-
 // ChangedStatuses returns the cards in next that are new or whose status, departure or arrival differ from previous.
 func ChangedStatuses(previous, next []FlightStatus) []FlightStatus {
 	seen := make(map[string]FlightStatus, len(previous))
-	for _, s := range previous {
-		seen[s.Flight+" "+s.Date] = s
+	for _, status := range previous {
+		seen[status.Flight+" "+status.Date] = status
 	}
 	var changed []FlightStatus
-	for _, s := range next {
-		old, ok := seen[s.Flight+" "+s.Date]
-		if !ok || old.Status != s.Status || old.Departure != s.Departure || old.Arrival != s.Arrival {
-			changed = append(changed, s)
+	for _, status := range next {
+		old, ok := seen[status.Flight+" "+status.Date]
+		if !ok || old.Status != status.Status || old.Departure != status.Departure || old.Arrival != status.Arrival {
+			changed = append(changed, status)
 		}
 	}
 	return changed
@@ -183,8 +32,8 @@ func ChangedStatuses(previous, next []FlightStatus) []FlightStatus {
 
 // AllFinal reports whether every card has a status that will not change again, such as landed or cancelled.
 func AllFinal(statuses []FlightStatus) bool {
-	for _, s := range statuses {
-		switch strings.ToLower(strings.TrimSpace(s.Status)) {
+	for _, status := range statuses {
+		switch strings.ToLower(strings.TrimSpace(status.Status)) {
 		case "aterrizado", "cancelado", "landed", "cancelled":
 		default:
 			return false

@@ -43,24 +43,12 @@ func TestParseFare(t *testing.T) {
 	}
 }
 
-func TestMonthDaysAndCheapestDay(t *testing.T) {
-	days := monthDays([]renderedDay{{"14", "59,99 €"}, {"3", "49,99 €"}, {"9", "120 €"}, {"3", "10 €"}, {"31", "5 €"}, {"20", "49,99 €"}}, "14/11/2026")
-	want := []CalendarDay{{"03/11/2026", "49,99 €"}, {"09/11/2026", "120 €"}, {"14/11/2026", "59,99 €"}, {"20/11/2026", "49,99 €"}}
-	if len(days) != len(want) {
-		t.Fatalf("monthDays = %v, want %v", days, want)
-	}
-	for i := range want {
-		if days[i] != want[i] {
-			t.Fatalf("monthDays = %v, want %v", days, want)
-		}
-	}
-	if cheapest, ok := CheapestDay(days); !ok || cheapest != want[0] {
-		t.Fatalf("CheapestDay = %v, %v; want %v", cheapest, ok, want[0])
+func TestCheapestDay(t *testing.T) {
+	days := []CalendarDay{{"03/11/2026", "49,99 €"}, {"09/11/2026", "120 €"}, {"14/11/2026", "59,99 €"}, {"20/11/2026", "49,99 €"}}
+	if cheapest, ok := CheapestDay(days); !ok || cheapest != days[0] {
+		t.Fatalf("CheapestDay = %v, %v; want %v", cheapest, ok, days[0])
 	}
 	if _, ok := CheapestDay(nil); ok {
 		t.Fatal("CheapestDay found a fare in no days")
-	}
-	if got := monthDays([]renderedDay{{"1", "9 €"}}, ""); got != nil {
-		t.Fatalf("monthDays without reference = %v", got)
 	}
 }

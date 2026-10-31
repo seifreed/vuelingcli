@@ -1,10 +1,13 @@
-package vueling
+package web
 
 import (
 	"context"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/seifreed/vuelingcli/internal/vueling"
 )
 
 type testPageReader struct {
@@ -28,9 +31,41 @@ func TestFlightsFromPageUsesInjectedReader(t *testing.T) {
 	if reader.pageURL != "https://example.test/search" || !strings.Contains(reader.script, "seleccionar vuelo por") {
 		t.Fatalf("reader request = (%q, %q), want search URL and rendered flight script", reader.pageURL, reader.script)
 	}
-	want := Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY1234", Departure: "07:15", Arrival: "09:05", Fare: "49", Currency: "EUR", Itinerary: "07:15 BCN VY1234 Vueling 09:05 AGP", Flights: []string{"VY1234"}}
-	if !reflect.DeepEqual(flights, []Flight{want}) {
-		t.Fatalf("FlightsFromPage = %+v, want %+v", flights, []Flight{want})
+	want := vueling.Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY1234", Departure: "07:15", Arrival: "09:05", Fare: "49", Currency: "EUR", Itinerary: "07:15 BCN VY1234 Vueling 09:05 AGP", Flights: []string{"VY1234"}}
+	if !reflect.DeepEqual(flights, []vueling.Flight{want}) {
+		t.Fatalf("FlightsFromPage = %+v, want %+v", flights, []vueling.Flight{want})
+	}
+}
+
+func TestParseRenderedFlightLegs(t *testing.T) {
+	tests := []struct {
+		name    string
+		details string
+		stops   int
+		flights []string
+		via     []string
+	}{
+		{"rendered SVQ-AMS connection", "06:45 SVQ Sevilla Conexión en BCN: 1 h 40 min Ámsterdam AMS 12:40 Vueling VY1383 Vueling VY1050 SELECCIONAR VUELO POR 282 EUR 282 €", 1, []string{"VY1383", "VY1050"}, []string{"BCN"}},
+		{"rendered overnight connection", "21:10 SVQ Sevilla Conexión en BCN: 11 h 15 min Ámsterdam AMS 12:40 +1 día Vueling VY1393 Vueling VY1050 SELECCIONAR VUELO POR 274 EUR 274 €", 1, []string{"VY1393", "VY1050"}, []string{"BCN"}},
+		{"direct", "VY1000 Directo 06:30 08:45", 0, []string{"VY1000"}, nil},
+		{"stop text without second number", "VY1001 1 escala 09:15 14:00", 1, []string{"VY1001"}, nil},
+		{"repeated number", "VY1003 VY2003 VY1003 18:00 23:10", 1, []string{"VY1003", "VY2003"}, nil},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			card := renderedFlight{Direction: "outbound", Label: "SELECCIONAR VUELO POR 99 EUR", Details: test.details}
+			flight, err := parseRenderedFlight(card, "12/11/2026", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if flight.Stops != test.stops || !slices.Equal(flight.Flights, test.flights) || !slices.Equal(flight.Via, test.via) {
+				t.Fatalf("legs = %d %v %v, want %d %v %v", flight.Stops, flight.Flights, flight.Via, test.stops, test.flights, test.via)
+			}
+			direct := vueling.FilterFlights([]vueling.Flight{flight}, vueling.FlightFilter{Direct: true})
+			if (len(direct) == 1) != (test.stops == 0) {
+				t.Fatalf("--direct kept %d of %d stops", len(direct), test.stops)
+			}
+		})
 	}
 }
 
@@ -38,27 +73,27 @@ func TestParseRenderedFlight(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		card renderedFlight
-		want Flight
+		want vueling.Flight
 	}{
 		{
 			name: "outbound euro fare",
 			card: renderedFlight{Direction: "outbound", Label: "Seleccionar vuelo por 49,99 €", Details: "07:15\nBCN\n  VY1234 Vueling\n09:05\nAGP"},
-			want: Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY1234", Departure: "07:15", Arrival: "09:05", Fare: "49.99", Currency: "EUR", Itinerary: "07:15 BCN VY1234 Vueling 09:05 AGP", Flights: []string{"VY1234"}},
+			want: vueling.Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY1234", Departure: "07:15", Arrival: "09:05", Fare: "49.99", Currency: "EUR", Itinerary: "07:15 BCN VY1234 Vueling 09:05 AGP", Flights: []string{"VY1234"}},
 		},
 		{
 			name: "return pound fare",
 			card: renderedFlight{Direction: "return", Label: "Seleccionar vuelo por 35 £", Details: "18:40 LGW VY7001 Vueling 20:00 BCN"},
-			want: Flight{Direction: "return", Date: "2027-02-08", Flight: "VY7001", Departure: "18:40", Arrival: "20:00", Fare: "35", Currency: "GBP", Itinerary: "18:40 LGW VY7001 Vueling 20:00 BCN", Flights: []string{"VY7001"}},
+			want: vueling.Flight{Direction: "return", Date: "2027-02-08", Flight: "VY7001", Departure: "18:40", Arrival: "20:00", Fare: "35", Currency: "GBP", Itinerary: "18:40 LGW VY7001 Vueling 20:00 BCN", Flights: []string{"VY7001"}},
 		},
 		{
 			name: "dollar fare",
 			card: renderedFlight{Direction: "outbound", Label: "Seleccionar vuelo por 120.50 $", Details: "10:00 VY812 12:30"},
-			want: Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY812", Departure: "10:00", Arrival: "12:30", Fare: "120.50", Currency: "USD", Itinerary: "10:00 VY812 12:30", Flights: []string{"VY812"}},
+			want: vueling.Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY812", Departure: "10:00", Arrival: "12:30", Fare: "120.50", Currency: "USD", Itinerary: "10:00 VY812 12:30", Flights: []string{"VY812"}},
 		},
 		{
 			name: "currency code is upper-cased",
 			card: renderedFlight{Direction: "outbound", Label: "Seleccionar vuelo por 99 chf", Details: "06:00 VY6000 07:30"},
-			want: Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY6000", Departure: "06:00", Arrival: "07:30", Fare: "99", Currency: "CHF", Itinerary: "06:00 VY6000 07:30", Flights: []string{"VY6000"}},
+			want: vueling.Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY6000", Departure: "06:00", Arrival: "07:30", Fare: "99", Currency: "CHF", Itinerary: "06:00 VY6000 07:30", Flights: []string{"VY6000"}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -98,11 +133,11 @@ func TestDecodeCalendar(t *testing.T) {
 	if !reflect.DeepEqual(got.Price, wantPrice) {
 		t.Errorf("Price = %v, want %v", got.Price, wantPrice)
 	}
-	wantDays := []CalendarDay{{Date: "03/01/2027", Fare: "29 €"}, {Date: "15/01/2027", Fare: "40 €"}}
+	wantDays := []vueling.CalendarDay{{Date: "03/01/2027", Fare: "29 €"}, {Date: "15/01/2027", Fare: "40 €"}}
 	if !reflect.DeepEqual(got.Days, wantDays) {
 		t.Errorf("Days = %v, want %v", got.Days, wantDays)
 	}
-	wantReturn := []CalendarDay{{Date: "20/02/2027", Fare: "45 €"}}
+	wantReturn := []vueling.CalendarDay{{Date: "20/02/2027", Fare: "45 €"}}
 	if !reflect.DeepEqual(got.ReturnDays, wantReturn) {
 		t.Errorf("ReturnDays = %v, want %v", got.ReturnDays, wantReturn)
 	}

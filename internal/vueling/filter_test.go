@@ -8,9 +8,9 @@ import (
 func TestFilterFlights(t *testing.T) {
 	flights := []Flight{
 		{Direction: "outbound", Flight: "VY1000", Departure: "06:30", Fare: "89.99", Itinerary: "VY1000 Directo 06:30 08:45"},
-		{Direction: "outbound", Flight: "VY1001", Departure: "09:15", Fare: "49.99", Itinerary: "VY1001 1 escala 09:15 14:00"},
+		{Direction: "outbound", Flight: "VY1001", Departure: "09:15", Fare: "49.99", Stops: 1, Itinerary: "VY1001 1 escala 09:15 14:00"},
 		{Direction: "outbound", Flight: "VY1002", Departure: "7:05", Fare: "", Itinerary: "VY1002 Directo 7:05 09:20"},
-		{Direction: "outbound", Flight: "VY1003", Departure: "18:00", Fare: "49.99", Itinerary: "VY1003 VY2003 18:00 23:10"},
+		{Direction: "outbound", Flight: "VY1003", Departure: "18:00", Fare: "49.99", Stops: 1, Itinerary: "VY1003 VY2003 18:00 23:10"},
 		{Direction: "outbound", Flight: "VY1004", Departure: "21:00", Fare: "39", Itinerary: "VY1004 Directo 21:00 23:15"},
 		{Direction: "return", Flight: "VY2000", Departure: "10:00", Fare: "120.50", Itinerary: "VY2000 Directo 10:00 12:00"},
 		{Direction: "return", Flight: "VY2001", Departure: "12:00", Fare: "60", Itinerary: "VY2001 Directo 12:00 14:00"},
@@ -44,37 +44,6 @@ func TestFilterFlights(t *testing.T) {
 	}
 }
 
-func TestParseRenderedFlightLegs(t *testing.T) {
-	tests := []struct {
-		name    string
-		details string
-		stops   int
-		flights []string
-		via     []string
-	}{
-		{"rendered SVQ-AMS connection", "06:45 SVQ Sevilla Conexión en BCN: 1 h 40 min Ámsterdam AMS 12:40 Vueling VY1383 Vueling VY1050 SELECCIONAR VUELO POR 282 EUR 282 €", 1, []string{"VY1383", "VY1050"}, []string{"BCN"}},
-		{"rendered overnight connection", "21:10 SVQ Sevilla Conexión en BCN: 11 h 15 min Ámsterdam AMS 12:40 +1 día Vueling VY1393 Vueling VY1050 SELECCIONAR VUELO POR 274 EUR 274 €", 1, []string{"VY1393", "VY1050"}, []string{"BCN"}},
-		{"direct", "VY1000 Directo 06:30 08:45", 0, []string{"VY1000"}, nil},
-		{"stop text without second number", "VY1001 1 escala 09:15 14:00", 1, []string{"VY1001"}, nil},
-		{"repeated number", "VY1003 VY2003 VY1003 18:00 23:10", 1, []string{"VY1003", "VY2003"}, nil},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			card := renderedFlight{Direction: "outbound", Label: "SELECCIONAR VUELO POR 99 EUR", Details: test.details}
-			flight, err := parseRenderedFlight(card, "12/11/2026", "")
-			if err != nil {
-				t.Fatal(err)
-			}
-			if flight.Stops != test.stops || !slices.Equal(flight.Flights, test.flights) || !slices.Equal(flight.Via, test.via) {
-				t.Fatalf("legs = %d %v %v, want %d %v %v", flight.Stops, flight.Flights, flight.Via, test.stops, test.flights, test.via)
-			}
-			if isDirect(flight) != (test.stops == 0) {
-				t.Fatalf("isDirect = %v with %d stops", isDirect(flight), test.stops)
-			}
-		})
-	}
-}
-
 func TestParseClock(t *testing.T) {
 	if got, err := ParseClock("07:30"); err != nil || got != 450 {
 		t.Fatalf("ParseClock(07:30) = %d, %v", got, err)
@@ -89,7 +58,7 @@ func TestParseClock(t *testing.T) {
 func TestFilterFlightsOnRenderedConnections(t *testing.T) {
 	// Cards read from Vueling for SVQ-AMS on 2026-11-12; every option connects in BCN.
 	card := func(flight, departure, fare, itinerary string) Flight {
-		return Flight{Direction: "outbound", Flight: flight, Departure: departure, Fare: fare, Itinerary: itinerary}
+		return Flight{Direction: "outbound", Flight: flight, Departure: departure, Fare: fare, Stops: 1, Itinerary: itinerary}
 	}
 	flights := []Flight{
 		card("VY1383", "06:45", "282", "06:45 SVQ Sevilla Conexión en BCN: 1 h 40 min Ámsterdam AMS 12:40 Vueling VY1383 Vueling VY1050 SELECCIONAR VUELO POR 282 EUR 282 €"),
