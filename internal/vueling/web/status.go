@@ -85,17 +85,16 @@ const flightStatusScript = `(() => {
 })()`
 
 var (
-	clockPattern   = regexp.MustCompile(`^\d{1,2}:\d{2}$`)
-	originPattern  = regexp.MustCompile(`^([A-Z]{3})\p{Lu}\p{Ll}`)
-	destinPattern  = regexp.MustCompile(`[\p{Ll})]([A-Z]{3})$`)
-	statusFlightRe = regexp.MustCompile(`^VY\d{2,4}[A-Z]?$`)
+	clockPattern  = regexp.MustCompile(`^\d{1,2}:\d{2}$`)
+	originPattern = regexp.MustCompile(`^([A-Z]{3})\p{Lu}\p{Ll}`)
+	destinPattern = regexp.MustCompile(`[\p{Ll})]([A-Z]{3})$`)
 )
 
 // FlightStatusFromPage reads public flight-status cards for one VY flight, or for a route when flight is empty.
 func FlightStatusFromPage(ctx context.Context, reader PageReader, flight, origin, destination string, date time.Time) ([]vueling.FlightStatus, error) {
 	query := url.Values{"vuelingcliDay": {fmt.Sprintf("%d-%d", date.Day(), int(date.Month())-1)}}
 	switch {
-	case statusFlightRe.MatchString(flight):
+	case vueling.IsFlightNumber(flight):
 		query.Set("vuelingcliFlight", flight)
 	case flight != "":
 		return nil, fmt.Errorf("flight must be VY followed by its number, such as VY1158 or VY392D")
@@ -140,7 +139,7 @@ func parseStatusCard(lines []string, date time.Time) (vueling.FlightStatus, erro
 	var times []string
 	for _, line := range lines {
 		switch {
-		case statusFlightRe.MatchString(line):
+		case vueling.IsFlightNumber(line):
 			status.Flight = line
 		case clockPattern.MatchString(line):
 			times = append(times, line)

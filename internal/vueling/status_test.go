@@ -29,6 +29,8 @@ func TestChangedStatusesAndAllFinal(t *testing.T) {
 		{"all final", []FlightStatus{onTime, other}, []FlightStatus{withStatus(onTime, "ATERRIZADO"), withStatus(other, "Cancelled")}, []string{"VY1158", "VY1160"}, true},
 		{"english landed", nil, []FlightStatus{withStatus(onTime, "landed")}, []string{"VY1158"}, true},
 		{"empty", []FlightStatus{onTime}, nil, nil, false},
+		{"not operated and diverted landing", nil, []FlightStatus{withStatus(onTime, "No operado"), withStatus(other, "Aterrizado en VLC")}, []string{"VY1158", "VY1160"}, true},
+		{"diverted in flight", nil, []FlightStatus{withStatus(onTime, "Desviado a VLC")}, []string{"VY1158"}, false},
 	}
 	for _, tt := range tests {
 		var got []string
@@ -40,6 +42,14 @@ func TestChangedStatusesAndAllFinal(t *testing.T) {
 		}
 		if final := AllFinal(tt.next); final != tt.final {
 			t.Errorf("%s: AllFinal = %v, want %v", tt.name, final, tt.final)
+		}
+	}
+}
+
+func TestIsFlightNumber(t *testing.T) {
+	for input, want := range map[string]bool{"VY1008": true, "VY392D": true, "VY1": false, "IB1008": false, "VY1008/../x": false} {
+		if got := IsFlightNumber(input); got != want {
+			t.Errorf("IsFlightNumber(%q) = %v, want %v", input, got, want)
 		}
 	}
 }

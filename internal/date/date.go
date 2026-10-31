@@ -8,8 +8,17 @@ import (
 	"time"
 )
 
-// ParseDate accepts ISO dates and the common relative forms used by the CLI.
+// ParseDate accepts ISO dates and the common relative forms used by the CLI, rejecting calendar dates before today.
 func ParseDate(value string, now time.Time) (time.Time, error) {
+	return parseDate(value, now, false)
+}
+
+// ParseDateAllowingPast is ParseDate for lookups such as flight status, where past calendar dates are valid.
+func ParseDateAllowingPast(value string, now time.Time) (time.Time, error) {
+	return parseDate(value, now, true)
+}
+
+func parseDate(value string, now time.Time, allowPast bool) (time.Time, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	switch value {
@@ -50,7 +59,7 @@ func ParseDate(value string, now time.Time) (time.Time, error) {
 	}
 	for _, layout := range []string{time.DateOnly, "02/01/2006"} {
 		if parsed, err := time.ParseInLocation(layout, value, now.Location()); err == nil {
-			if parsed.Before(today) {
+			if !allowPast && parsed.Before(today) {
 				return time.Time{}, fmt.Errorf("date must be today or later")
 			}
 			return parsed, nil
