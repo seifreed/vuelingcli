@@ -1,3 +1,4 @@
+// Package vueling builds Vueling links and reads rendered fares, flights, and flight status from Chrome.
 package vueling
 
 import (
@@ -16,6 +17,7 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
+// Flight is one rendered Vueling offer.
 type Flight struct {
 	Direction string `json:"direction"`
 	Date      string `json:"date"`
@@ -334,9 +336,10 @@ func parseRenderedFlight(card renderedFlight, outboundDate, returnDate string) (
 		return Flight{}, fmt.Errorf("could not parse a rendered Vueling flight card")
 	}
 	direction, date := card.Direction, outboundDate
-	if direction == "return" {
+	switch direction {
+	case "return":
 		date = returnDate
-	} else if direction == "" {
+	case "":
 		return Flight{}, fmt.Errorf("could not determine whether a rendered flight is outbound or return")
 	}
 	currency := strings.ToUpper(fare[2])

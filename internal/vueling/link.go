@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// LinkOptions describes a Vueling search or flight-selection link.
 type LinkOptions struct {
 	Origin, Destination                     string
 	Date, ReturnDate                        time.Time
@@ -138,7 +139,7 @@ func isAlphaNumeric(s string) bool {
 		return false
 	}
 	for _, r := range s {
-		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9') {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') {
 			return false
 		}
 	}

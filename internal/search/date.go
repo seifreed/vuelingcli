@@ -1,3 +1,4 @@
+// Package search parses the travel dates the CLI accepts.
 package search
 
 import (

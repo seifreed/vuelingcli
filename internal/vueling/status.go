@@ -15,6 +15,7 @@ import (
 
 const statusPage = "https://www.vueling.com/es/servicios-vueling/informacion-de-vuelos/estado-de-vuelos"
 
+// FlightStatus is one public flight-status card.
 type FlightStatus struct {
 	Flight      string `json:"flight"`
 	Date        string `json:"date"`

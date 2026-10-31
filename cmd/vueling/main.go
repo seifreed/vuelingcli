@@ -1,3 +1,4 @@
+// Command vueling reads Vueling fares, flights, and flight status from the user's Chrome session.
 package main
 
 import (
@@ -449,15 +450,16 @@ func airportSearch(args []string) error {
 	format := ""
 	var query []string
 	for _, arg := range args {
-		if arg == "--json" || arg == "--toon" {
+		switch {
+		case arg == "--json" || arg == "--toon":
 			requested := arg[2:]
 			if format != "" && format != requested {
 				return fmt.Errorf("--json and --toon cannot be used together")
 			}
 			format = requested
-		} else if strings.HasPrefix(arg, "-") {
+		case strings.HasPrefix(arg, "-"):
 			return fmt.Errorf("unknown option %s", arg)
-		} else {
+		default:
 			query = append(query, arg)
 		}
 	}

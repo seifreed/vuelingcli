@@ -1,0 +1,31 @@
+version: "2"
+
+linters:
+  enable:
+    - staticcheck
+    - govet
+    - errcheck
+    - gosec
+    - revive
+    - ineffassign
+    - unused
+    - gocritic
+  settings:
+    errcheck:
+      exclude-functions:
+        - (io.ReadCloser).Close
+    gosec:
+      excludes:
+        # G204/G702: only fixed binaries (osascript, open, rundll32, xdg-open) run, with the
+        # URL or script as a separate argument and never through a shell.
+        - G204
+        - G702
+  exclusions:
+    rules:
+      # Errors start with "Vueling", a proper noun.
+      - linters:
+          - staticcheck
+        text: "ST1005"
+      - path: _test\.go
+        linters:
+          - gosec

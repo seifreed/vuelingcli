@@ -1,7 +1,9 @@
+// Package airports resolves city names and IATA codes for Vueling stations.
 package airports
 
 import "strings"
 
+// Airport is a Vueling station.
 type Airport struct {
 	Code string `json:"code"`
 	City string `json:"city"`
@@ -61,6 +63,7 @@ var aliases = map[string][]string{
 	"TRN": {"Turin"}, "VCE": {"Venice"}, "VIE": {"Vienna"},
 }
 
+// Search returns the airports whose code, city, or name match query.
 func Search(query string) []Airport {
 	q := normalize(query)
 	matches := []Airport{}

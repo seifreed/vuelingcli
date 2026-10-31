@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// FlightFilter narrows, sorts, and limits flight offers per direction.
 type FlightFilter struct {
 	Cheapest bool
 	Direct   bool
