@@ -78,4 +78,4 @@ Searches the bundled partial airport catalogue by city name or three-letter code
 
 ## Not implemented
 
-Live fares, availability, result ranking, and filters such as departure time or direct-only are not implemented by this CLI. Vueling's public deeplink documentation describes how to turn Flight Calendar price responses into URLs, but does not document the request contract required to retrieve those responses.
+Live fares, availability, result ranking, and filters such as departure time or direct-only are not implemented by this CLI. As of 2026-10-31, Vueling's former Flight Calendar deeplink reference URL returns 404; no accessible public contract for requesting its price responses has been found, and direct requests from the CLI returned HTTP 403.

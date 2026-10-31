@@ -17,7 +17,7 @@ type LinkOptions struct {
 	ReturnFlight, ReturnFareBasis, METToken string
 }
 
-// FlightURL builds the documented Vueling flight-selection deep link.
+// FlightURL builds a Vueling flight-selection deep link.
 func FlightURL(o LinkOptions) (string, error) {
 	o.Origin, o.Destination = strings.ToUpper(strings.TrimSpace(o.Origin)), strings.ToUpper(strings.TrimSpace(o.Destination))
 	o.OutboundFlight, o.ReturnFlight = strings.ToUpper(strings.TrimSpace(o.OutboundFlight)), strings.ToUpper(strings.TrimSpace(o.ReturnFlight))
