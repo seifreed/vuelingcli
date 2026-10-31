@@ -13,6 +13,15 @@ go install github.com/seifreed/vuelingcli/cmd/vueling@latest
 vueling help
 ```
 
+### Instalación desde una release
+
+Cada tag `v*` publica binarios para Linux y macOS (amd64 y arm64) y Windows (amd64), con un fichero `SHA256SUMS`. Descarga el de tu plataforma desde [Releases](https://github.com/seifreed/vuelingcli/releases), verifícalo y pon `vueling` en tu `PATH`:
+
+```sh
+shasum -a 256 -c SHA256SUMS --ignore-missing
+tar xzf vueling_v0.1.0_darwin_arm64.tar.gz
+```
+
 ## Desarrollo
 
 ```sh
@@ -34,3 +43,7 @@ En macOS, `flights` usa Apple Events para abrir una pestaña, enviar el formular
 `.claude/skills/vueling-flights/` documenta cómo buscar en el navegador y usar la CLI para generar enlaces. La [referencia de CLI](.claude/skills/vueling-flights/references/cli-reference.md) lista cada opción, formato de fecha y esquema de salida.
 
 Sin afiliación con Vueling ni respaldo por su parte.
+
+## Licencia
+
+MIT. Consulta [LICENSE](LICENSE).

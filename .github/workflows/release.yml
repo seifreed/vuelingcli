@@ -1,0 +1,48 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - run: go test ./...
+      - name: build archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$GITHUB_REF_NAME"
+          mkdir -p dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            goos="${target%/*}"
+            goarch="${target#*/}"
+            name="vueling_${version}_${goos}_${goarch}"
+            bin="vueling"
+            if [ "$goos" = windows ]; then bin="vueling.exe"; fi
+            mkdir -p "dist/$name"
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" go build \
+              -trimpath -ldflags "-s -w" -o "dist/$name/$bin" ./cmd/vueling
+            cp README.md LICENSE "dist/$name/"
+            if [ "$goos" = windows ]; then
+              (cd dist && zip -qr "$name.zip" "$name")
+            else
+              tar -C dist -czf "dist/$name.tar.gz" "$name"
+            fi
+            rm -rf "dist/$name"
+          done
+          (cd dist && sha256sum -- *.tar.gz *.zip > SHA256SUMS)
+      - name: publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
