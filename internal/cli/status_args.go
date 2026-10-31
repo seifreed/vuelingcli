@@ -15,13 +15,18 @@ type flightStatusOptions struct {
 	date                        time.Time
 	endpoint, format            string
 	watch                       int
+	browser                     bool
 }
 
 func parseFlightStatusOptions(args []string) (flightStatusOptions, error) {
 	var positional []string
-	dateValue, endpoint, format, watch := "today", "", "", 0
+	dateValue, endpoint, format, watch, browser := "today", "", "", 0, false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
+		if a == "--browser" {
+			browser = true
+			continue
+		}
 		if a == "--json" || a == "--toon" {
 			requested, err := setOutputFormat(format, a)
 			if err != nil {
@@ -43,7 +48,7 @@ func parseFlightStatusOptions(args []string) (flightStatusOptions, error) {
 		case "date":
 			dateValue = value
 		case "cdp-url":
-			endpoint = value
+			endpoint, browser = value, true
 		case "watch":
 			n, err := parseIntOption(value, 0)
 			if err != nil || n < 5 {
@@ -75,12 +80,16 @@ func parseFlightStatusOptions(args []string) (flightStatusOptions, error) {
 	default:
 		return flightStatusOptions{}, fmt.Errorf("usage: vueling status <VY flight number> | <origin> <destination> [--date <date>]")
 	}
-	date, err := dateparse.ParseDate(dateValue, time.Now())
+	parseDate := dateparse.ParseDateAllowingPast
+	if browser {
+		parseDate = dateparse.ParseDate
+	}
+	date, err := parseDate(dateValue, time.Now())
 	if err != nil {
 		return flightStatusOptions{}, fmt.Errorf("invalid --date: %w", err)
 	}
 	return flightStatusOptions{
 		flight: flight, origin: origin, destination: destination, date: date,
-		endpoint: endpoint, format: format, watch: watch,
+		endpoint: endpoint, format: format, watch: watch, browser: browser,
 	}, nil
 }

@@ -16,7 +16,7 @@ import (
 
 func (cli *CLI) flightStatus(args []string) error {
 	if isHelp(args) {
-		if _, err := fmt.Fprint(cli.stdout, "Read a Vueling flight's live status from your Chrome session\n\nUsage:\n  vueling status <VY flight number> [--date <date>] [--watch <minutes>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n  vueling status <origin city or IATA> <destination city or IATA> [--date <date>] [--watch <minutes>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n\nThe date defaults to today. This command fills Vueling's public flight-status form and reads the rendered cards.\n--watch re-reads every N minutes (at least 5), prints only cards whose status or times changed, and stops once every flight has landed or been cancelled, or on Ctrl-C. It cannot be combined with --toon.\n"); err != nil {
+		if _, err := fmt.Fprint(cli.stdout, "Read a Vueling flight's live status\n\nUsage:\n  vueling status <VY flight number> [--date <date>] [--watch <minutes>] [--browser [--cdp-url http://127.0.0.1:9222]] [--json|--toon]\n  vueling status <origin city or IATA> <destination city or IATA> [--date <date>] [--watch <minutes>] [--browser [--cdp-url http://127.0.0.1:9222]] [--json|--toon]\n\nThe date defaults to today; past dates are accepted. This command reads Vueling's public flight-status API directly.\nTimes are local airport times as Vueling currently shows them; details include scheduled times, terminals, gates, and baggage belts.\n--browser (implied by --cdp-url) instead fills Vueling's flight-status form in your Chrome session and reads the rendered cards; it only accepts today or later.\n--watch re-reads every N minutes (at least 5), prints only cards whose status or times changed, and stops once every flight has landed or been cancelled, or on Ctrl-C. It cannot be combined with --toon.\n"); err != nil {
 			return err
 		}
 		return nil
@@ -25,13 +25,11 @@ func (cli *CLI) flightStatus(args []string) error {
 	if err != nil {
 		return err
 	}
-	reader := cli.newReader(options.endpoint)
+	read := cli.statusSource(options)
 	if options.watch > 0 {
-		return cli.watchFlightStatus(time.Duration(options.watch)*time.Minute, options.format == "json", func(ctx context.Context) ([]vueling.FlightStatus, error) {
-			return web.FlightStatusFromPage(ctx, reader, options.flight, options.origin, options.destination, options.date)
-		})
+		return cli.watchFlightStatus(time.Duration(options.watch)*time.Minute, options.format == "json", read)
 	}
-	statuses, err := web.FlightStatusFromPage(context.Background(), reader, options.flight, options.origin, options.destination, options.date)
+	statuses, err := read(context.Background())
 	if err != nil {
 		return err
 	}
@@ -44,6 +42,19 @@ func (cli *CLI) flightStatus(args []string) error {
 		}
 	}
 	return nil
+}
+
+// statusSource reads Vueling's flight-status API unless --browser asked for Chrome or no API client is configured.
+func (cli *CLI) statusSource(options flightStatusOptions) func(context.Context) ([]vueling.FlightStatus, error) {
+	if options.browser || cli.api == nil {
+		reader := cli.newReader(options.endpoint)
+		return func(ctx context.Context) ([]vueling.FlightStatus, error) {
+			return web.FlightStatusFromPage(ctx, reader, options.flight, options.origin, options.destination, options.date)
+		}
+	}
+	return func(ctx context.Context) ([]vueling.FlightStatus, error) {
+		return cli.api.FlightStatus(ctx, options.flight, options.origin, options.destination, options.date)
+	}
 }
 
 func statusLine(s vueling.FlightStatus) string {
