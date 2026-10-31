@@ -18,7 +18,7 @@ var catalogue = []Airport{
 	{"ORY", "París Orly"}, {"CDG", "París Charles de Gaulle"},
 	{"FCO", "Roma Fiumicino"}, {"MXP", "Milán Malpensa"},
 	{"AMS", "Ámsterdam"}, {"LGW", "Londres Gatwick"}, {"BRU", "Bruselas"},
-	{"LIS", "Lisboa"}, {"OPO", "Oporto"}, {"FRA", "Fráncfort"}, {"FNC", "Funchal"}, {"MUC", "Múnich"},
+	{"LIS", "Lisboa"}, {"OPO", "Oporto"}, {"FRA", "Fráncfort"}, {"FNC", "Funchal"}, {"MLA", "Malta"}, {"MUC", "Múnich"},
 	{"GVA", "Ginebra"}, {"ZRH", "Zúrich"}, {"EDI", "Edimburgo"}, {"CPH", "Copenhague"},
 	{"AGA", "Agadir"}, {"ALG", "Argel"}, {"ATH", "Atenas"}, {"BJL", "Banjul"}, {"BRI", "Bari"}, {"BLQ", "Bolonia"},
 	{"BOD", "Burdeos"}, {"CAI", "El Cairo"}, {"CAG", "Cagliari"}, {"CTA", "Catania"}, {"HER", "Heraclión"},
