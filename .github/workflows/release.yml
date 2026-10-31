@@ -32,7 +32,7 @@ jobs:
             if [ "$goos" = windows ]; then bin="vueling.exe"; fi
             mkdir -p "dist/$name"
             CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" go build \
-              -trimpath -ldflags "-s -w" -o "dist/$name/$bin" ./cmd/vueling
+              -trimpath -ldflags "-s -w -X main.version=${version#v}" -o "dist/$name/$bin" ./cmd/vueling
             cp README.md LICENSE "dist/$name/"
             if [ "$goos" = windows ]; then
               (cd dist && zip -qr "$name.zip" "$name")
