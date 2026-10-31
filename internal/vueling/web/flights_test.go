@@ -126,6 +126,21 @@ func TestParseRenderedFlightRejectsIncompleteCards(t *testing.T) {
 	}
 }
 
+func TestParseRenderedFlightUsesFinalConnectionArrival(t *testing.T) {
+	card := renderedFlight{
+		Direction: "outbound",
+		Label:     "Seleccionar vuelo por 282 EUR",
+		Details:   "06:45 SVQ VY1383 08:25 BCN 10:05 BCN VY1050 12:40 AMS",
+	}
+	flight, err := parseRenderedFlight(card, "2026-11-12", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if flight.Departure != "06:45" || flight.Arrival != "12:40" {
+		t.Fatalf("connection times = %s–%s, want 06:45–12:40", flight.Departure, flight.Arrival)
+	}
+}
+
 func TestDecodeCalendar(t *testing.T) {
 	output := []byte(`{"route":"IDA: Barcelona - Málaga","date":"14/01/2027","fare":"35 €","returnDate":"20/02/2027","days":[{"day":"15","fare":"40 €"},{"day":"3","fare":"29 €"},{"day":"3","fare":"31 €"}],"returnDays":[{"day":"20","fare":"45 €"}]}`)
 	got, err := decodeCalendar(output)

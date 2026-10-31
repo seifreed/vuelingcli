@@ -221,7 +221,7 @@ func parseRenderedFlight(card renderedFlight, outboundDate, returnDate string) (
 		Date:      date,
 		Flight:    flightNumber,
 		Departure: times[0],
-		Arrival:   times[1],
+		Arrival:   times[len(times)-1],
 		Fare:      strings.ReplaceAll(fare[1], ",", "."),
 		Currency:  currency,
 		Itinerary: itinerary,
