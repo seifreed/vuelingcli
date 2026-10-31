@@ -13,9 +13,9 @@ func ParseDate(value string, now time.Time) (time.Time, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	switch value {
-	case "today":
+	case "today", "hoy":
 		return validateSupportedDate(value, today)
-	case "tomorrow":
+	case "tomorrow", "mañana", "manana":
 		return validateSupportedDate(value, today.AddDate(0, 0, 1))
 	}
 	weekdays := map[string]time.Weekday{
@@ -56,7 +56,7 @@ func ParseDate(value string, now time.Time) (time.Time, error) {
 			return parsed, nil
 		}
 	}
-	return time.Time{}, fmt.Errorf("invalid date %q (use YYYY-MM-DD, DD/MM/YYYY, today, tomorrow, or +N)", value)
+	return time.Time{}, fmt.Errorf("invalid date %q (use YYYY-MM-DD, DD/MM/YYYY, today, tomorrow, +N, or a weekday)", value)
 }
 
 func validateSupportedDate(value string, date time.Time) (time.Time, error) {

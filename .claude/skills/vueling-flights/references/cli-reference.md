@@ -7,7 +7,7 @@ The CLI is read-only. `flights` reads current offers from Vueling's rendered pag
 All date options accept:
 
 - `YYYY-MM-DD` or `DD/MM/YYYY`
-- `today`, `tomorrow`, or `+N` days (`+0` means today)
+- `today`/`hoy`, `tomorrow`/`mañana`, or `+N` days (`+0` means today)
 - English weekdays: `sun`/`sunday`, `mon`/`monday`, `tue`/`tuesday`, `wed`/`wednesday`, `thu`/`thursday`, `fri`/`friday`, `sat`/`saturday`
 - Spanish weekdays: `domingo`, `lunes`, `martes`, `miércoles`/`miercoles`, `jueves`, `viernes`, `sábado`/`sabado`
 
@@ -65,7 +65,7 @@ vueling flights <origin city-or-IATA> <destination city-or-IATA> --date <date> [
 
 On macOS, opens a search tab in the current Chrome profile, submits the visible search form, and reads its rendered flight cards through Apple Events. Chrome requires **View > Developer > Allow JavaScript from Apple Events**; that setting permits scripts to run in pages, so enable it only with the user's explicit approval. On other systems, the command uses Chrome's local DevTools endpoint. That endpoint grants browser control and must stay on loopback; `--cdp-url` accepts only localhost or a loopback IP. Chrome 136+ ignores the command-line port switch for its default data directory, so do not copy the user's profile as a workaround. See [Chrome's remote-debugging changes](https://developer.chrome.com/blog/remote-debugging-port). The command reads no cookies, storage, tokens, or network requests and does not select any fare. A CAPTCHA, expired session, or Vueling service outage can prevent results from loading.
 
-The JSON/TOON object contains `url` and `flights`; each flight has `direction`, `date`, `flight`, `departure`, `arrival`, `fare`, `currency`, the visible `itinerary` text, and connection legs derived from that text: `stops` (number of connections, `0` for direct), `flights` (every VY flight number on the card, in order, deduplicated; the first equals `flight`), and `via` (connection airports the card names, e.g. `["BCN"]` from "Conexión en BCN"; omitted when none is named). Layover duration and per-leg times are not parsed; read them from `itinerary`. Human-readable output adds `1 escala vía BCN · VY1383+VY1050 |` before the itinerary of connecting offers and leaves direct offers unchanged. Currency defaults to `EUR` and uses the same supported values as `search`/`link`.
+The JSON/TOON object contains `url` and `flights`; each flight has `direction`, `date`, `flight`, `departure`, `arrival`, `fare`, `currency`, the visible `itinerary` text, and connection legs derived from that text: `stops` (number of connections, `0` for direct), `flights` (every VY flight number on the card, in order, deduplicated; the first equals `flight`), and `via` (connection airports the card names, e.g. `["BCN"]` from "Conexión en BCN"; omitted when none is named). Layover duration and per-leg times are not parsed; read them from `itinerary`. Human-readable output adds `1 escala vía BCN · VY1383+VY1050 |` before the itinerary of connecting offers and leaves direct offers unchanged. Currency defaults to `EUR` and uses the same supported values as `search`/`link`. When Vueling's results page says there are no flights that day, `flights` exits `2` with `Vueling shows no flights for that route on the requested date`; this is not a session problem.
 
 Ranking and filters apply to outbound and return offers independently:
 
@@ -113,6 +113,6 @@ Searches a local snapshot based on [Vueling's airport-help pages](https://help.v
 {"url":"https://tickets.vueling.com/booking?..."}
 ```
 
-`airports` returns an array of `{ "code", "city" }` objects; no matches is an empty array. Human-readable text goes to stdout and usage errors go to stderr. Invalid arguments exit with code `2`.
+`airports` returns an array of `{ "code", "city" }` objects; no matches is an empty array with `--json`/`--toon` and a `no Vueling airport matches` error (exit `2`) in text mode. Human-readable text goes to stdout and usage errors go to stderr. Invalid arguments exit with code `2`.
 
 `flights` returns offers in the order displayed by Vueling unless `--cheapest` is given; `--direct`, `--after`, `--before`, and `--limit` narrow each direction independently.

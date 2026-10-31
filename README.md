@@ -44,7 +44,7 @@ $ vueling calendar BCN MLA --date 12/11/2026 --return 03/12/2026 --prices --json
 | **Enlaces oficiales** | `search`/`link` generan la URL de selección de vuelos, con pasajeros, descuentos, moneda y vuelo concreto |
 | **Estado de vuelos** | `status VY1158` o `status BCN PMI` leen el estado público de un vuelo o de todos los de una ruta (en hora, en vuelo, aterrizado...) |
 | **Catálogo de aeropuertos** | `airports` busca en una copia local por ciudad o código IATA, sin peticiones de red |
-| **Fechas flexibles** | `YYYY-MM-DD`, `DD/MM/YYYY`, `today`, `tomorrow`, `+N` o un día de la semana en inglés o español |
+| **Fechas flexibles** | `YYYY-MM-DD`, `DD/MM/YYYY`, `today`/`hoy`, `tomorrow`/`mañana`, `+N` o un día de la semana en inglés o español |
 | **Salida para agentes** | `--json` y `--toon`; datos a stdout, errores de uso a stderr con código de salida `2` |
 
 ---
