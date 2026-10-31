@@ -43,24 +43,23 @@ var catalogue = []Airport{
 }
 
 var aliases = map[string][]string{
-	"ORY": {"Paris Orly"}, "CDG": {"Paris Charles de Gaulle"},
-	"CAI": {"Cairo"}, "SXB": {"Strasbourg"},
-	"ODB": {"Cordoba"}, "IST": {"Istanbul"}, "ESU": {"Essaouira"}, "LLA": {"Lulea"}, "TOS": {"Tromso"},
-	"BIA": {"Bastia Corsica"}, "LIN": {"Milan", "Milan Linate", "Milano"}, "QSR": {"Naples Salerno", "Salerno"}, "PSA": {"Pisa"},
-	"LCY": {"London", "London City"}, "LHR": {"London", "London Heathrow"}, "NDR": {"Nador"}, "GOT": {"Gothenburg", "Goteborg"},
-	"AMM": {"Amman"}, "BEY": {"Beirut"}, "BLL": {"Billund"}, "CZL": {"Constantine"},
-	"FCO": {"Rome", "Rome Fiumicino"}, "MXP": {"Milan", "Milan Malpensa"},
+	"SXB": {"Strasbourg"},
+	"IST": {"Istanbul"}, "ESU": {"Essaouira"}, "LLA": {"Lulea"}, "TOS": {"Tromso"},
+	"BIA": {"Bastia Corsica"}, "LIN": {"Milano"}, "QSR": {"Naples Salerno"},
+	"LCY": {"London", "London City"}, "LHR": {"London", "London Heathrow"}, "GOT": {"Gothenburg", "Goteborg"},
+	"AMM": {"Amman"}, "CZL": {"Constantine"},
+	"FCO": {"Rome", "Rome Fiumicino"},
 	"BSL": {"Basel"}, "LJU": {"Ljubljana"},
 	"LGW": {"London", "London Gatwick"}, "BRU": {"Brussels"},
-	"CFU": {"Corfu"}, "EAS": {"Donostia", "San Sebastian"}, "JMK": {"Mykonos"}, "ORN": {"Oran"}, "TIA": {"Tirane"},
-	"LIS": {"Lisbon"}, "OPO": {"Porto"}, "FRA": {"Frankfurt"}, "MUC": {"Munich"},
-	"LCG": {"La Coruna"}, "MAH": {"Minorca"}, "PMI": {"Mallorca"},
+	"EAS": {"Donostia"}, "JMK": {"Mykonos"}, "TIA": {"Tirane"},
+	"LIS": {"Lisbon"}, "FRA": {"Frankfurt"},
+	"LCG": {"La Coruna"}, "MAH": {"Minorca"},
 	"ALG": {"Algiers"}, "ATH": {"Athens"}, "BLQ": {"Bologna"}, "BOD": {"Bordeaux"},
 	"HER": {"Crete", "Heraklion"}, "FLR": {"Florence"}, "GOA": {"Genoa"}, "HAJ": {"Hannover"},
-	"MAN": {"Manchester"}, "RAK": {"Marrakesh"}, "MRS": {"Marseille"}, "NAP": {"Naples"},
-	"NCE": {"Nice"}, "NUE": {"Nuremberg"}, "PRG": {"Prague"}, "KEF": {"Reykjavik"},
-	"RMI": {"Rimini"}, "ARN": {"Stockholm"}, "TNG": {"Tangier"}, "TUN": {"Tunis"},
-	"TRN": {"Turin"}, "VCE": {"Venice"}, "VIE": {"Vienna"},
+	"RAK": {"Marrakesh"}, "MRS": {"Marseille"}, "NAP": {"Naples"},
+	"NCE": {"Nice"}, "PRG": {"Prague"}, "KEF": {"Reykjavik"},
+	"ARN": {"Stockholm"}, "TNG": {"Tangier"}, "TUN": {"Tunis"},
+	"VCE": {"Venice"}, "VIE": {"Vienna"},
 }
 
 // Search returns the airports whose code, city, or name match query.
