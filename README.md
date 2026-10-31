@@ -1,7 +1,7 @@
 <h1 align="center">vuelingcli</h1>
 
 <p align="center">
-  <strong>CLI no oficial de Vueling, pensada también para agentes — vuelos y tarifas desde la terminal usando tu Chrome local</strong>
+  <strong>CLI no oficial de Vueling, pensada también para agentes — vuelos, tarifas y estado de vuelos desde la terminal, sin abrir el navegador</strong>
 </p>
 
 <p align="center">
@@ -15,9 +15,9 @@
 
 ## Resumen
 
-**vuelingcli** consulta vuelos y precios de Vueling desde la línea de comandos. `flights` lee las
-ofertas renderizadas en la web de Vueling a través de tu sesión local de Chrome; `calendar --prices`
-lee las tarifas del calendario de precios; el resto de comandos generan enlaces oficiales. Todos los
+**vuelingcli** consulta vuelos y precios de Vueling desde la línea de comandos. `flights`,
+`calendar --prices` y `status` consultan por HTTPS las mismas APIs JSON que usa la web de Vueling,
+sin abrir pestañas ni leer cookies; el resto de comandos generan enlaces oficiales. Todos los
 comandos con datos admiten `--json` o `--toon` para uso programático.
 
 Es de **solo lectura**: no reserva, no paga, no selecciona tarifas ni modifica viajes.
@@ -25,8 +25,8 @@ Es de **solo lectura**: no reserva, no paga, no selecciona tarifas ni modifica v
 ```console
 $ vueling flights SVQ AMS --date 12/11/2026 --cheapest --limit 2
 https://tickets.vueling.com/booking/flightSearch?...
-OUTBOUND 2026-11-12 VY1393 21:10–12:40 274 EUR | 1 escala vía BCN · VY1393+VY1050 | 21:10 SVQ Sevilla Conexión en BCN: 11 h 15 min Ámsterdam AMS 12:40 +1 día ...
-OUTBOUND 2026-11-12 VY1383 06:45–12:40 282 EUR | 1 escala vía BCN · VY1383+VY1050 | 06:45 SVQ Sevilla Conexión en BCN: 1 h 40 min Ámsterdam AMS 12:40 ...
+OUTBOUND 2026-11-12 VY1393 21:10–12:40 273.62 EUR | 1 escala vía BCN · VY1393+VY1050 | 21:10 SVQ → 12:40 AMS VY1393+VY1050 Conexión en BCN
+OUTBOUND 2026-11-12 VY1383 06:45–12:40 281.62 EUR | 1 escala vía BCN · VY1383+VY1050 | 06:45 SVQ → 12:40 AMS VY1383+VY1050 Conexión en BCN
 
 $ vueling calendar BCN MLA --date 12/11/2026 --return 03/12/2026 --prices --json
 {"date":"12/11/2026","fare":"21 €","returnDate":"03/12/2026","returnFare":"28 €",...}
@@ -102,34 +102,28 @@ vueling airports malta
 
 Las rutas aceptan códigos IATA o nombres de ciudad no ambiguos del catálogo local (entre comillas si
 tienen varias palabras). `flights` y `search`/`link` admiten `--adults`, `--children`, `--infants` y
-`--currency` (`EUR` por defecto); `flights` acepta además `--cdp-url`. Las tarifas del calendario no
+`--currency` (`EUR` por defecto); `flights`, `calendar --prices` y `status` aceptan además `--browser` (y `--cdp-url` con él). Las tarifas del calendario no
 son un precio final de reserva.
 
 ---
 
-## Requisitos del navegador
+## Cómo obtiene los datos
 
-`flights` y `calendar --prices` necesitan Chrome; los demás comandos no abren ni controlan el
-navegador.
+`flights`, `calendar --prices`, `flights --nearby` y `status` llaman por HTTPS a las APIs JSON que usa
+la propia web de Vueling (`apiw.vueling.com` y `ams.vueling.com`), con la huella TLS y las cabeceras de
+Chrome (uTLS) que exige su CDN. No abren el navegador, no leen cookies ni requieren cuenta: `flights`
+usa la sesión anónima que Vueling da a cualquier visitante. Son APIs no documentadas, así que pueden
+cambiar sin aviso; si la CDN bloquea la petición (HTTP 403) o algo deja de funcionar, añade
+`--browser`.
 
-En macOS, `flights` usa Apple Events para abrir una pestaña, enviar el formulario de búsqueda y leer
-ofertas desde el perfil actual de Chrome; hay que habilitar **View > Developer > Allow JavaScript
-from Apple Events**. Esa opción permite que AppleScript ejecute JavaScript en páginas, así que no la
-actives sin autorización.
-
-En otros sistemas, `flights` requiere un endpoint DevTools local ligado a `localhost`/loopback, que
-permite controlar el navegador. Usa `--cdp-url` para especificar un endpoint local; solo se aceptan
-`localhost` o una IP de loopback. Chrome 136+ ignora el puerto de depuración por línea de comandos
-con el perfil de datos predeterminado; no copies ese perfil como workaround. Consulta los
-[cambios de depuración remota de Chrome](https://developer.chrome.com/blog/remote-debugging-port).
-
-El comando extrae solo el texto visible de las ofertas, no lee cookies, tokens ni APIs privadas y no
-selecciona tarifas. `calendar --prices` también lee el precio visible y requiere el mismo puente de
-navegador.
-
-Un CAPTCHA, una sesión caducada o una caída del servicio de Vueling pueden impedir que carguen los
-resultados. Si `tickets.vueling.com` se queda en "Cargando..." o `flights` no encuentra resultados
-renderizados, puede hacer falta iniciar sesión en Vueling en ese perfil de Chrome antes de reintentar.
+`--browser` vuelve al método anterior: lee la web renderizada en tu Chrome. En macOS usa Apple Events
+(hay que habilitar **View > Developer > Allow JavaScript from Apple Events**, que permite ejecutar
+JavaScript en páginas: no lo actives sin autorización); en otros sistemas usa un endpoint DevTools
+local (`--cdp-url`, solo `localhost` o loopback). Chrome 136+ ignora el puerto de depuración con el
+perfil predeterminado; no copies ese perfil como workaround
+([cambios de depuración remota de Chrome](https://developer.chrome.com/blog/remote-debugging-port)).
+Si con `--browser` `tickets.vueling.com` se queda en "Cargando...", inicia sesión en Vueling en ese
+perfil antes de reintentar.
 
 ---
 
