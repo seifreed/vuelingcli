@@ -169,6 +169,34 @@ func parseStatusCard(lines []string, date time.Time) FlightStatus {
 	return status
 }
 
+// ChangedStatuses returns the cards in next that are new or whose status, departure or arrival differ from previous.
+func ChangedStatuses(previous, next []FlightStatus) []FlightStatus {
+	seen := make(map[string]FlightStatus, len(previous))
+	for _, s := range previous {
+		seen[s.Flight+" "+s.Date] = s
+	}
+	var changed []FlightStatus
+	for _, s := range next {
+		old, ok := seen[s.Flight+" "+s.Date]
+		if !ok || old.Status != s.Status || old.Departure != s.Departure || old.Arrival != s.Arrival {
+			changed = append(changed, s)
+		}
+	}
+	return changed
+}
+
+// AllFinal reports whether every card has a status that will not change again, such as landed or cancelled.
+func AllFinal(statuses []FlightStatus) bool {
+	for _, s := range statuses {
+		switch strings.ToLower(strings.TrimSpace(s.Status)) {
+		case "aterrizado", "cancelado", "landed", "cancelled":
+		default:
+			return false
+		}
+	}
+	return len(statuses) > 0
+}
+
 func readPageWithDevTools(ctx context.Context, endpoint, pageURL, pageScript string) ([]byte, error) {
 	if endpoint == "" {
 		endpoint = "http://127.0.0.1:9222"

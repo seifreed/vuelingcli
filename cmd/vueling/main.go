@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/seifreed/vuelingcli/internal/airports"
@@ -215,11 +217,11 @@ func flights(args []string) error {
 
 func flightStatus(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Read a Vueling flight's live status from your Chrome session\n\nUsage:\n  vueling status <VY flight number> [--date <date>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n  vueling status <origin city or IATA> <destination city or IATA> [--date <date>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n\nThe date defaults to today. This command fills Vueling's public flight-status form and reads the rendered cards.\n")
+		fmt.Print("Read a Vueling flight's live status from your Chrome session\n\nUsage:\n  vueling status <VY flight number> [--date <date>] [--watch <minutes>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n  vueling status <origin city or IATA> <destination city or IATA> [--date <date>] [--watch <minutes>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n\nThe date defaults to today. This command fills Vueling's public flight-status form and reads the rendered cards.\n--watch re-reads every N minutes (at least 5), prints only cards whose status or times changed, and stops once every flight has landed or been cancelled, or on Ctrl-C. It cannot be combined with --toon.\n")
 		return nil
 	}
 	var positional []string
-	dateValue, endpoint, format := "today", "", ""
+	dateValue, endpoint, format, watch := "today", "", "", 0
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--json" || a == "--toon" {
@@ -246,9 +248,18 @@ func flightStatus(args []string) error {
 			dateValue = v
 		case "cdp-url":
 			endpoint = v
+		case "watch":
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 5 {
+				return fmt.Errorf("--watch must be a whole number of minutes, at least 5")
+			}
+			watch = n
 		default:
 			return fmt.Errorf("unknown option --%s", k)
 		}
+	}
+	if watch > 0 && format == "toon" {
+		return fmt.Errorf("--watch cannot be used with --toon")
 	}
 	flight, origin, destination := "", "", ""
 	switch len(positional) {
@@ -269,6 +280,11 @@ func flightStatus(args []string) error {
 	if err != nil {
 		return fmt.Errorf("invalid --date: %w", err)
 	}
+	if watch > 0 {
+		return watchFlightStatus(time.Duration(watch)*time.Minute, format == "json", func(ctx context.Context) ([]vueling.FlightStatus, error) {
+			return vueling.FlightStatusFromBrowser(ctx, endpoint, flight, origin, destination, date)
+		})
+	}
 	statuses, err := vueling.FlightStatusFromBrowser(context.Background(), endpoint, flight, origin, destination, date)
 	if err != nil {
 		return err
@@ -280,9 +296,50 @@ func flightStatus(args []string) error {
 		return writeTOON(statuses)
 	}
 	for _, s := range statuses {
-		fmt.Printf("%s %s %s %s–%s %s→%s\n", s.Flight, s.Date, s.Status, s.Departure, s.Arrival, s.Origin, s.Destination)
+		fmt.Println(statusLine(s))
 	}
 	return nil
+}
+
+func statusLine(s vueling.FlightStatus) string {
+	return fmt.Sprintf("%s %s %s %s–%s %s→%s", s.Flight, s.Date, s.Status, s.Departure, s.Arrival, s.Origin, s.Destination)
+}
+
+func watchFlightStatus(every time.Duration, asJSON bool, read func(context.Context) ([]vueling.FlightStatus, error)) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	encoder := json.NewEncoder(os.Stdout)
+	var previous []vueling.FlightStatus
+	for first := true; ; first = false {
+		statuses, err := read(ctx)
+		switch {
+		case ctx.Err() != nil:
+			return nil
+		case err != nil && first:
+			return err
+		case err != nil:
+			fmt.Fprintf(os.Stderr, "status: %v (retrying in %s)\n", err, every)
+		default:
+			for _, s := range vueling.ChangedStatuses(previous, statuses) {
+				if asJSON {
+					if err := encoder.Encode(s); err != nil {
+						return err
+					}
+				} else {
+					fmt.Printf("%s %s\n", time.Now().Format("15:04"), statusLine(s))
+				}
+			}
+			if vueling.AllFinal(statuses) {
+				return nil
+			}
+			previous = statuses
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(every):
+		}
+	}
 }
 
 func showVersion(args []string) error {
