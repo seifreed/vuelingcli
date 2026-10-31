@@ -4,6 +4,15 @@ CLI no oficial para consultar el calendario público de precios de Vueling desde
 
 La herramienta es de solo lectura: genera enlaces públicos, pero no reserva, no paga ni modifica viajes.
 
+## Instalación
+
+Requiere Go 1.24 o posterior.
+
+```sh
+go install github.com/seifreed/vuelingcli/cmd/vueling@latest
+vueling help
+```
+
 ## Desarrollo
 
 ```sh
