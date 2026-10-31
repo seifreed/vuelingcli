@@ -15,22 +15,22 @@ func TestParseRenderedFlight(t *testing.T) {
 		{
 			name: "outbound euro fare",
 			card: renderedFlight{Direction: "outbound", Label: "Seleccionar vuelo por 49,99 €", Details: "07:15\nBCN\n  VY1234 Vueling\n09:05\nAGP"},
-			want: Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY1234", Departure: "07:15", Arrival: "09:05", Fare: "49.99", Currency: "EUR", Itinerary: "07:15 BCN VY1234 Vueling 09:05 AGP"},
+			want: Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY1234", Departure: "07:15", Arrival: "09:05", Fare: "49.99", Currency: "EUR", Itinerary: "07:15 BCN VY1234 Vueling 09:05 AGP", Flights: []string{"VY1234"}},
 		},
 		{
 			name: "return pound fare",
 			card: renderedFlight{Direction: "return", Label: "Seleccionar vuelo por 35 £", Details: "18:40 LGW VY7001 Vueling 20:00 BCN"},
-			want: Flight{Direction: "return", Date: "2027-02-08", Flight: "VY7001", Departure: "18:40", Arrival: "20:00", Fare: "35", Currency: "GBP", Itinerary: "18:40 LGW VY7001 Vueling 20:00 BCN"},
+			want: Flight{Direction: "return", Date: "2027-02-08", Flight: "VY7001", Departure: "18:40", Arrival: "20:00", Fare: "35", Currency: "GBP", Itinerary: "18:40 LGW VY7001 Vueling 20:00 BCN", Flights: []string{"VY7001"}},
 		},
 		{
 			name: "dollar fare",
 			card: renderedFlight{Direction: "outbound", Label: "Seleccionar vuelo por 120.50 $", Details: "10:00 VY812 12:30"},
-			want: Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY812", Departure: "10:00", Arrival: "12:30", Fare: "120.50", Currency: "USD", Itinerary: "10:00 VY812 12:30"},
+			want: Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY812", Departure: "10:00", Arrival: "12:30", Fare: "120.50", Currency: "USD", Itinerary: "10:00 VY812 12:30", Flights: []string{"VY812"}},
 		},
 		{
 			name: "currency code is upper-cased",
 			card: renderedFlight{Direction: "outbound", Label: "Seleccionar vuelo por 99 chf", Details: "06:00 VY6000 07:30"},
-			want: Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY6000", Departure: "06:00", Arrival: "07:30", Fare: "99", Currency: "CHF", Itinerary: "06:00 VY6000 07:30"},
+			want: Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY6000", Departure: "06:00", Arrival: "07:30", Fare: "99", Currency: "CHF", Itinerary: "06:00 VY6000 07:30", Flights: []string{"VY6000"}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -38,7 +38,7 @@ func TestParseRenderedFlight(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got != tc.want {
+			if !reflect.DeepEqual(got, tc.want) {
 				t.Fatalf("parseRenderedFlight = %+v, want %+v", got, tc.want)
 			}
 		})
