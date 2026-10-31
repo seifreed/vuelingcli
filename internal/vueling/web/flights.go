@@ -134,7 +134,10 @@ func readCalendar(ctx context.Context, reader PageReader, calendarURL, returnDat
 
 func decodeCalendar(output []byte) (vueling.CalendarMonth, error) {
 	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(output, &fields); err != nil || len(fields) == 0 {
+	if err := json.Unmarshal(output, &fields); err != nil {
+		return vueling.CalendarMonth{}, fmt.Errorf("could not decode rendered Vueling calendar: %w", err)
+	}
+	if len(fields) == 0 {
 		return vueling.CalendarMonth{}, fmt.Errorf("Vueling did not render the requested calendar price")
 	}
 	price := map[string]string{}
@@ -152,7 +155,7 @@ func decodeCalendar(output []byte) (vueling.CalendarMonth, error) {
 			price[key] = text
 		}
 		if err != nil {
-			return vueling.CalendarMonth{}, fmt.Errorf("Vueling did not render the requested calendar price")
+			return vueling.CalendarMonth{}, fmt.Errorf("could not decode rendered Vueling calendar field %q: %w", key, err)
 		}
 	}
 	if message := price["error"]; message != "" {
@@ -174,7 +177,7 @@ func FlightsFromPage(ctx context.Context, reader PageReader, searchURL, outbound
 		return nil, err
 	}
 	if err := json.Unmarshal(output, &cards); err != nil {
-		return nil, fmt.Errorf("could not decode rendered Vueling offers")
+		return nil, fmt.Errorf("could not decode rendered Vueling offers: %w", err)
 	}
 	if len(cards) == 0 {
 		return nil, fmt.Errorf("Vueling did not render flight offers; the session may need attention or Vueling may be temporarily unavailable")

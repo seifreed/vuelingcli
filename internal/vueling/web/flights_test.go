@@ -2,6 +2,8 @@ package web
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"reflect"
 	"slices"
 	"strings"
@@ -34,6 +36,15 @@ func TestFlightsFromPageUsesInjectedReader(t *testing.T) {
 	want := vueling.Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY1234", Departure: "07:15", Arrival: "09:05", Fare: "49", Currency: "EUR", Itinerary: "07:15 BCN VY1234 Vueling 09:05 AGP", Flights: []string{"VY1234"}}
 	if !reflect.DeepEqual(flights, []vueling.Flight{want}) {
 		t.Fatalf("FlightsFromPage = %+v, want %+v", flights, []vueling.Flight{want})
+	}
+}
+
+func TestFlightsFromPagePreservesDecodeError(t *testing.T) {
+	reader := &testPageReader{output: []byte("{")}
+	_, err := FlightsFromPage(context.Background(), reader, "https://example.test/search", "2027-02-03", "")
+	var syntaxErr *json.SyntaxError
+	if !errors.As(err, &syntaxErr) {
+		t.Fatalf("FlightsFromPage error = %v, want wrapped JSON syntax error", err)
 	}
 }
 
@@ -161,15 +172,23 @@ func TestDecodeCalendar(t *testing.T) {
 	}
 }
 
+func TestDecodeCalendarPreservesFieldError(t *testing.T) {
+	_, err := decodeCalendar([]byte(`{"fare":42}`))
+	var typeErr *json.UnmarshalTypeError
+	if !errors.As(err, &typeErr) || !strings.Contains(err.Error(), `field "fare"`) {
+		t.Fatalf("decodeCalendar error = %v, want wrapped fare field type error", err)
+	}
+}
+
 func TestDecodeCalendarErrors(t *testing.T) {
 	for _, tc := range []struct {
 		name, output, want string
 	}{
-		{"empty list", `[]`, "did not render"},
+		{"empty list", `[]`, "could not decode rendered Vueling calendar:"},
 		{"empty object", `{}`, "did not render"},
-		{"not JSON", `nope`, "did not render"},
-		{"malformed days", `{"days":"x"}`, "did not render"},
-		{"non-string field", `{"fare":12}`, "did not render"},
+		{"not JSON", `nope`, "could not decode rendered Vueling calendar:"},
+		{"malformed days", `{"days":"x"}`, `field "days"`},
+		{"non-string field", `{"fare":12}`, `field "fare"`},
 		{"page error", `{"error":"shows no fare for the requested date"}`, "Vueling shows no fare for the requested date"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -115,7 +115,7 @@ func FlightStatusFromPage(ctx context.Context, reader PageReader, flight, origin
 	}
 	var cards [][]string
 	if err := json.Unmarshal(output, &cards); err != nil {
-		return nil, fmt.Errorf("could not decode the rendered Vueling flight status")
+		return nil, fmt.Errorf("could not decode the rendered Vueling flight status: %w", err)
 	}
 	if len(cards) == 0 {
 		return nil, fmt.Errorf("Vueling did not render any flight status cards")

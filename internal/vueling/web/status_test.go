@@ -2,6 +2,8 @@ package web
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -28,5 +30,15 @@ func TestFlightStatusFromPageRejectsNoCards(t *testing.T) {
 	statuses, err := FlightStatusFromPage(context.Background(), reader, "VY1234", "", "", date)
 	if err == nil || err.Error() != "Vueling did not render any flight status cards" {
 		t.Fatalf("FlightStatusFromPage returned %d statuses and error %v", len(statuses), err)
+	}
+}
+
+func TestFlightStatusFromPagePreservesDecodeError(t *testing.T) {
+	reader := &testPageReader{output: []byte("{")}
+	date := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
+	_, err := FlightStatusFromPage(context.Background(), reader, "VY1234", "", "", date)
+	var syntaxErr *json.SyntaxError
+	if !errors.As(err, &syntaxErr) {
+		t.Fatalf("FlightStatusFromPage error = %v, want wrapped JSON syntax error", err)
 	}
 }
