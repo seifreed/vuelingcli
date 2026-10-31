@@ -21,7 +21,7 @@ var version = "0.1.0"
 
 func main() {
 	if len(os.Args) == 1 || os.Args[1] == "help" || os.Args[1] == "--help" || os.Args[1] == "-h" {
-		fmt.Print("vueling — unofficial read-only Vueling CLI\n\nUsage:\n  vueling <command> [options]\n\nCommands:\n  flights     Read live flight offers from Chrome\n  search      Build an official flight-search link\n  calendar    Build a Vueling price-calendar link\n  link        Build a flight-selection link\n  airports    Search Vueling airport codes\n  help        Show this help\n  version     Show version\n\nRun 'vueling <command> --help' for command options.\n")
+		fmt.Print("vueling — unofficial read-only Vueling CLI\n\nUsage:\n  vueling <command> [options]\n\nCommands:\n  flights     Read live flight offers from Chrome\n  status      Read a flight's live status from Chrome\n  search      Build an official flight-search link\n  calendar    Build a Vueling price-calendar link\n  link        Build a flight-selection link\n  airports    Search Vueling airport codes\n  help        Show this help\n  version     Show version\n\nRun 'vueling <command> --help' for command options.\n")
 		return
 	}
 	switch os.Args[1] {
@@ -56,6 +56,11 @@ func main() {
 	case "flights":
 		if err := flights(os.Args[2:]); err != nil {
 			fmt.Fprintf(os.Stderr, "flights: %v\n", err)
+			os.Exit(2)
+		}
+	case "status":
+		if err := flightStatus(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "status: %v\n", err)
 			os.Exit(2)
 		}
 	case "link":
@@ -204,6 +209,66 @@ func flights(args []string) error {
 	fmt.Printf("%s\n", searchURL)
 	for _, flight := range flights {
 		fmt.Printf("%-8s %s %s %s–%s %s %s | %s\n", strings.ToUpper(flight.Direction), flight.Date, flight.Flight, flight.Departure, flight.Arrival, flight.Fare, flight.Currency, flight.Itinerary)
+	}
+	return nil
+}
+
+func flightStatus(args []string) error {
+	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
+		fmt.Print("Read a Vueling flight's live status from your Chrome session\n\nUsage:\n  vueling status <VY flight number> [--date <date>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n\nThe date defaults to today. This command fills Vueling's public flight-status form and reads the rendered card.\n")
+		return nil
+	}
+	var positional []string
+	dateValue, endpoint, format := "today", "", ""
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--json" || a == "--toon" {
+			if format != "" {
+				return fmt.Errorf("--json and --toon cannot be used together")
+			}
+			format = a[2:]
+			continue
+		}
+		if !strings.HasPrefix(a, "--") {
+			positional = append(positional, a)
+			continue
+		}
+		k, v, hasValue := strings.Cut(a[2:], "=")
+		if !hasValue {
+			if i+1 == len(args) {
+				return fmt.Errorf("--%s requires a value", k)
+			}
+			i++
+			v = args[i]
+		}
+		switch k {
+		case "date":
+			dateValue = v
+		case "cdp-url":
+			endpoint = v
+		default:
+			return fmt.Errorf("unknown option --%s", k)
+		}
+	}
+	if len(positional) != 1 {
+		return fmt.Errorf("usage: vueling status <VY flight number> [--date <date>]")
+	}
+	date, err := search.ParseDate(dateValue, time.Now())
+	if err != nil {
+		return fmt.Errorf("invalid --date: %w", err)
+	}
+	statuses, err := vueling.FlightStatusFromBrowser(context.Background(), endpoint, strings.ToUpper(positional[0]), date)
+	if err != nil {
+		return err
+	}
+	switch format {
+	case "json":
+		return json.NewEncoder(os.Stdout).Encode(statuses)
+	case "toon":
+		return writeTOON(statuses)
+	}
+	for _, s := range statuses {
+		fmt.Printf("%s %s %s %s–%s %s→%s\n", s.Flight, s.Date, s.Status, s.Departure, s.Arrival, s.Origin, s.Destination)
 	}
 	return nil
 }

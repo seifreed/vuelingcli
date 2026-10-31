@@ -77,6 +77,14 @@ Ranking and filters apply to outbound and return offers independently:
 
 Example: `vueling flights BCN MLA --date +7 --return +14 --direct --after 08:00 --cheapest --limit 3 --json`.
 
+### `vueling status`
+
+```text
+vueling status <VY flight number> [--date <date>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]
+```
+
+Reads the live status of one Vueling flight from the public [flight-status page](https://www.vueling.com/es/servicios-vueling/informacion-de-vuelos/estado-de-vuelos). That page has no deep link, so the command fills its flight-number form in a new tab of the current Chrome profile (macOS Apple Events) or local DevTools session, reads the rendered card, and closes the tab. `--date` defaults to `today`; the page only offers a few days around today and the command reports dates it disables. An unknown flight number for that day is reported as an error. The JSON/TOON value is an array of objects with `flight`, `date`, `status` (Vueling's text, such as `En Hora`), `origin`, `destination`, `departure`, `arrival`, and the visible card text in `details`. Vueling notes that this information is indicative and refreshes every 10 minutes.
+
 ### `vueling airports`
 
 ```text
@@ -87,11 +95,11 @@ Searches a local snapshot based on [Vueling's airport-help pages](https://help.v
 
 ### `vueling version` and help
 
-`vueling version` (also `--version` or `-v`) prints the CLI version. Add `--json` or `--toon` for structured output. `vueling help`, `--help`, or `-h` prints command names. Use `vueling version --help`, `vueling flights --help`, `vueling search --help`, `vueling link --help`, `vueling calendar --help`, or `vueling airports --help` for command usage.
+`vueling version` (also `--version` or `-v`) prints the CLI version. Add `--json` or `--toon` for structured output. `vueling help`, `--help`, or `-h` prints command names. Use `vueling version --help`, `vueling flights --help`, `vueling status --help`, `vueling search --help`, `vueling link --help`, `vueling calendar --help`, or `vueling airports --help` for command usage.
 
 ## Structured output
 
-`search`, `link`, and `calendar` return a JSON object with one `url` field; `flights` returns `url` and `flights`; `version` returns a `version` field. Both use the same shape in TOON format:
+`search`, `link`, and `calendar` return a JSON object with one `url` field; `flights` returns `url` and `flights`; `status` returns an array of flight statuses; `version` returns a `version` field. Both use the same shape in TOON format:
 
 ```json
 {"url":"https://tickets.vueling.com/booking?..."}

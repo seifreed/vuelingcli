@@ -1,6 +1,6 @@
 ---
 name: vueling-flights
-description: Search live Vueling prices and flight itineraries in the user's browser session, or build flight-selection links with the vueling CLI.
+description: Search live Vueling prices, flight itineraries, and flight status in the user's browser session, or build flight-selection links with the vueling CLI.
 ---
 
 # Vueling flights
@@ -25,4 +25,4 @@ Use Vueling's site in the user's browser for live prices and flight itineraries.
 
 ## Commands
 
-For complete command syntax, option meanings, date formats, and output schemas, read [the CLI reference](references/cli-reference.md). Quick examples: `vueling flights BCN AGP --date +7 --return +14 --json`, `vueling flights BCN AGP --date +7 --direct --after 08:00 --cheapest --limit 3 --json`, `vueling calendar BCN AGP --date +7 --return +14 --prices --json`, `vueling calendar Barcelona "Palma de Mallorca" --date tomorrow --open`, `vueling search BCN AGP --date +7 --adults 2 --json`, `vueling airports paris --toon`, and `vueling version --json`. Quote multi-word city names; ambiguous cities must be passed by IATA code. `flights` reads visible fares through local Chrome; `calendar --prices` reads the public rendered calendar; `search`, `link`, and calendar without `--prices` only create URLs.
+For complete command syntax, option meanings, date formats, and output schemas, read [the CLI reference](references/cli-reference.md). Quick examples: `vueling flights BCN AGP --date +7 --return +14 --json`, `vueling flights BCN AGP --date +7 --direct --after 08:00 --cheapest --limit 3 --json`, `vueling calendar BCN AGP --date +7 --return +14 --prices --json`, `vueling calendar Barcelona "Palma de Mallorca" --date tomorrow --open`, `vueling search BCN AGP --date +7 --adults 2 --json`, `vueling status VY1158 --date today --json`, `vueling airports paris --toon`, and `vueling version --json`. Quote multi-word city names; ambiguous cities must be passed by IATA code. `flights` reads visible fares through local Chrome; `calendar --prices` reads the public rendered calendar; `status` reads the public flight-status card; `search`, `link`, and calendar without `--prices` only create URLs.
