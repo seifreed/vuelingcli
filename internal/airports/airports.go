@@ -32,6 +32,8 @@ var catalogue = []Airport{
 	{"CDT", "Castellón"}, {"CFU", "Corfú"}, {"CIY", "Comiso"}, {"TIA", "Tirana"},
 	{"EAS", "San Sebastián"}, {"ORN", "Orán"}, {"ZAG", "Zagreb"}, {"RJL", "Logroño"},
 	{"VLL", "Valladolid"}, {"ZAZ", "Zaragoza"}, {"JMK", "Mikonos"},
+	{"ODB", "Córdoba"}, {"IST", "Estambul"}, {"ESU", "Esauira"}, {"IVL", "Ivalo"}, {"RVN", "Rovaniemi"},
+	{"MLN", "Melilla"}, {"LLA", "Luleå"}, {"SID", "Sal"}, {"TIV", "Tivat"}, {"TOS", "Tromsø"},
 	{"ARN", "Estocolmo"}, {"CWL", "Cardiff"}, {"SXB", "Estrasburgo"}, {"STR", "Stuttgart"}, {"TNG", "Tánger"}, {"TUN", "Túnez"},
 	{"TRN", "Turín"}, {"TLS", "Toulouse"}, {"VCE", "Venecia"}, {"VIE", "Viena"},
 }
@@ -39,6 +41,7 @@ var catalogue = []Airport{
 var aliases = map[string][]string{
 	"ORY": {"Paris Orly"}, "CDG": {"Paris Charles de Gaulle"},
 	"CAI": {"Cairo"}, "SXB": {"Strasbourg"},
+	"ODB": {"Cordoba"}, "IST": {"Istanbul"}, "ESU": {"Essaouira"}, "LLA": {"Lulea"}, "TOS": {"Tromso"},
 	"FCO": {"Rome", "Rome Fiumicino"}, "MXP": {"Milan", "Milan Malpensa"},
 	"BSL": {"Basel"}, "LJU": {"Ljubljana"},
 	"LGW": {"London", "London Gatwick"}, "BRU": {"Brussels"},
