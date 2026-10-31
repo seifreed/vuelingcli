@@ -90,7 +90,7 @@ const renderedPriceScript = `(() => {
   }
   if (returnDate && !selectedReturnMonth.startsWith(expectedMonth)) return [];
   const route = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^IDA:/i.test(t));
-  const returnRoute = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^VUELTA:/i.test(t));
+  const returnRoute = returnDate ? document.body.innerText.split('\n').map(t => t.trim()).find(t => /^VUELTA:/i.test(t)) || '' : '';
   if (month) return days.length && route && (!returnDate || returnDays.length) ? {route, date: params.get('dateComplete'), fare, returnRoute, returnDate, returnFare, days, returnDays} : [];
   const priced = table => [...(table?.querySelectorAll('button') || [])].some(b => hasCurrency(b.innerText || ''));
   if (route && priced(tables[0]) && !fare) return {error: 'shows no fare for the requested date'};

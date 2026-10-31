@@ -39,7 +39,12 @@ func (cli *CLI) calendar(args []string) error {
 		if options.format != "" {
 			return cli.writeStructured(price, options.format)
 		}
-		_, err = fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["route"], options.date.Format("02/01/2006"), price["fare"])
+		if _, err := fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["route"], options.date.Format("02/01/2006"), price["fare"]); err != nil {
+			return err
+		}
+		if options.returnDate != "" {
+			_, err = fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["returnRoute"], options.returnDate, price["returnFare"])
+		}
 		return err
 	}
 	if options.format != "" {
