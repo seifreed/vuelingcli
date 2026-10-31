@@ -22,6 +22,7 @@ go run ./cmd/vueling calendar BCN MLA --date 14/01/2027
 go run ./cmd/vueling calendar BCN MLA --date 14/01/2027 --prices --json
 go run ./cmd/vueling calendar BCN MLA --date 14/01/2027 --return 28/01/2027 --prices --json
 go run ./cmd/vueling flights BCN MLA --date 14/01/2027 --return 28/01/2027 --json
+go run ./cmd/vueling flights BCN MLA --date 14/01/2027 --direct --after 08:00 --before 20:00 --cheapest --limit 3
 ```
 
 En macOS, `flights` usa Apple Events para abrir una pestaña, enviar el formulario de búsqueda y leer ofertas desde el perfil actual de Chrome; hay que habilitar **View > Developer > Allow JavaScript from Apple Events**. Esa opción permite que AppleScript ejecute JavaScript en páginas, así que no la actives sin autorización. En otros sistemas, `flights` requiere un endpoint DevTools local ligado a `localhost`/loopback, que permite controlar el navegador. Chrome 136+ ignora el puerto de depuración por línea de comandos con el perfil de datos predeterminado; no copies ese perfil como workaround. El comando extrae solo el texto visible de las ofertas, no lee cookies, tokens ni APIs privadas y no selecciona tarifas. Usa `--cdp-url` para especificar un endpoint local. `calendar --prices` también lee el precio de ida visible y requiere el mismo puente de navegador.

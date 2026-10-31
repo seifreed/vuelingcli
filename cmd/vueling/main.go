@@ -71,12 +71,13 @@ func main() {
 
 func flights(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Read live flight offers from your Chrome session\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n\nOn macOS, enable View > Developer > Allow JavaScript from Apple Events in Chrome. Other systems need a local Chrome DevTools endpoint. This command reads rendered offers only; it never selects a fare.\n")
+		fmt.Print("Read live flight offers from your Chrome session\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--cdp-url http://127.0.0.1:9222] [--cheapest] [--direct] [--after HH:MM] [--before HH:MM] [--limit N] [--json|--toon]\n\nFilters, sorting, and limits apply to outbound and return offers independently. --after and --before are inclusive departure times.\n\nOn macOS, enable View > Developer > Allow JavaScript from Apple Events in Chrome. Other systems need a local Chrome DevTools endpoint. This command reads rendered offers only; it never selects a fare.\n")
 		return nil
 	}
 	values := map[string]string{}
 	var positional []string
 	format := ""
+	var filter vueling.FlightFilter
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--json" || a == "--toon" {
@@ -84,6 +85,11 @@ func flights(args []string) error {
 				return fmt.Errorf("--json and --toon cannot be used together")
 			}
 			format = a[2:]
+			continue
+		}
+		if a == "--cheapest" || a == "--direct" {
+			filter.Cheapest = filter.Cheapest || a == "--cheapest"
+			filter.Direct = filter.Direct || a == "--direct"
 			continue
 		}
 		if strings.HasPrefix(a, "--") {
@@ -96,7 +102,7 @@ func flights(args []string) error {
 				v = args[i]
 			}
 			switch k {
-			case "date", "return", "adults", "children", "infants", "currency", "cdp-url":
+			case "date", "return", "adults", "children", "infants", "currency", "cdp-url", "after", "before", "limit":
 				values[k] = v
 			default:
 				return fmt.Errorf("unknown option --%s", k)
@@ -151,6 +157,31 @@ func flights(args []string) error {
 	if err != nil {
 		return fmt.Errorf("invalid --infants: %w", err)
 	}
+	if filter.Limit, err = integer("limit", 0); err != nil || (values["limit"] != "" && filter.Limit < 1) {
+		return fmt.Errorf("invalid --limit: must be a whole number of at least 1")
+	}
+	clock := func(key string, fallback int) (int, error) {
+		if values[key] == "" {
+			return fallback, nil
+		}
+		minutes, err := vueling.ParseClock(values[key])
+		if err != nil {
+			return 0, fmt.Errorf("invalid --%s: %w", key, err)
+		}
+		return minutes, nil
+	}
+	afterMinutes, err := clock("after", 0)
+	if err != nil {
+		return err
+	}
+	beforeMinutes, err := clock("before", 24*60)
+	if err != nil {
+		return err
+	}
+	if afterMinutes > beforeMinutes {
+		return fmt.Errorf("--after must not be later than --before")
+	}
+	filter.After, filter.Before = values["after"], values["before"]
 	currency := strings.ToUpper(values["currency"])
 	if currency == "" {
 		currency = "EUR"
@@ -163,6 +194,7 @@ func flights(args []string) error {
 	if err != nil {
 		return err
 	}
+	flights = vueling.FilterFlights(flights, filter)
 	if format == "json" {
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{"url": searchURL, "flights": flights})
 	}

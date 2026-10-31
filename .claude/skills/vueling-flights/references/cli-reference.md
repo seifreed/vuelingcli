@@ -58,12 +58,24 @@ Builds a URL for Vueling's public price calendar. With `--prices`, reads the req
 ### `vueling flights`
 
 ```text
-vueling flights <origin city-or-IATA> <destination city-or-IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency CODE] [--cdp-url http://127.0.0.1:9222] [--json|--toon]
+vueling flights <origin city-or-IATA> <destination city-or-IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency CODE] [--cdp-url http://127.0.0.1:9222] [--cheapest] [--direct] [--after HH:MM] [--before HH:MM] [--limit N] [--json|--toon]
 ```
 
 On macOS, opens a search tab in the current Chrome profile, submits the visible search form, and reads its rendered flight cards through Apple Events. Chrome requires **View > Developer > Allow JavaScript from Apple Events**; that setting permits scripts to run in pages, so enable it only with the user's explicit approval. On other systems, the command uses Chrome's local DevTools endpoint. That endpoint grants browser control and must stay on loopback; `--cdp-url` accepts only localhost or a loopback IP. Chrome 136+ ignores the command-line port switch for its default data directory, so do not copy the user's profile as a workaround. See [Chrome's remote-debugging changes](https://developer.chrome.com/blog/remote-debugging-port). The command reads no cookies, storage, tokens, or network requests and does not select any fare. A CAPTCHA, expired session, or Vueling service outage can prevent results from loading.
 
 The JSON/TOON object contains `url` and `flights`; each flight has `direction`, `date`, `flight`, `departure`, `arrival`, `fare`, `currency`, and the visible `itinerary` text. Currency defaults to `EUR` and uses the same supported values as `search`/`link`.
+
+Ranking and filters apply to outbound and return offers independently:
+
+| Option | Meaning |
+| --- | --- |
+| `--cheapest` | Sort by numeric fare, lowest first; ties keep Vueling's order and unparseable fares go last. |
+| `--direct` | Keep offers whose visible itinerary shows no stop: no `escala`/`conexión`/`stop` text and a single VY flight number. This is a heuristic over the rendered card text. |
+| `--after HH:MM` | Keep departures at or after this time. |
+| `--before HH:MM` | Keep departures at or before this time; must not be earlier than `--after`. |
+| `--limit N` | Keep the first `N` offers per direction after filtering and sorting (`N` ≥ 1). |
+
+Example: `vueling flights BCN MLA --date +7 --return +14 --direct --after 08:00 --cheapest --limit 3 --json`.
 
 ### `vueling airports`
 
@@ -87,4 +99,4 @@ Searches a local snapshot based on [Vueling's airport-help pages](https://help.v
 
 `airports` returns an array of `{ "code", "city" }` objects; no matches is an empty array. Human-readable text goes to stdout and usage errors go to stderr. Invalid arguments exit with code `2`.
 
-`flights` returns offers in the order displayed by Vueling. Ranking and filters such as departure time or direct-only are not implemented.
+`flights` returns offers in the order displayed by Vueling unless `--cheapest` is given; `--direct`, `--after`, `--before`, and `--limit` narrow each direction independently.
