@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -43,11 +42,8 @@ func (cli *CLI) flights(args []string) error {
 			result["returnNearby"] = returnNearby
 		}
 	}
-	if options.format == "json" {
-		return json.NewEncoder(cli.stdout).Encode(result)
-	}
-	if options.format == "toon" {
-		return cli.writeTOON(result)
+	if options.format != "" {
+		return cli.writeStructured(result, options.format)
 	}
 	if _, err := fmt.Fprintf(cli.stdout, "%s\n", searchURL); err != nil {
 		return err

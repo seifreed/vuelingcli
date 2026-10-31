@@ -2,11 +2,8 @@ package cli
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
-	dateparse "github.com/seifreed/vuelingcli/internal/date"
 	"github.com/seifreed/vuelingcli/internal/vueling"
 )
 
@@ -28,27 +25,24 @@ func parseFlightLinkOptions(args []string) (flightLinkOptions, error) {
 			continue
 		}
 		if a == "--json" || a == "--toon" {
-			if format != "" {
-				return flightLinkOptions{}, fmt.Errorf("--json and --toon cannot be used together")
+			requested, err := setOutputFormat(format, a)
+			if err != nil {
+				return flightLinkOptions{}, err
 			}
-			format = a[2:]
+			format = requested
 			continue
 		}
 		if len(a) > 2 && a[:2] == "--" {
-			k, v, hasValue := strings.Cut(a[2:], "=")
-			if !hasValue {
-				remaining := args[i:]
-				if len(remaining) < 2 {
-					return flightLinkOptions{}, fmt.Errorf("--%s requires a value", k)
-				}
-				v = remaining[1]
-				i++
+			key, value, next, err := parseLongOption(args, i)
+			if err != nil {
+				return flightLinkOptions{}, err
 			}
-			switch k {
+			i = next
+			switch key {
 			case "date", "return", "adults", "children", "infants", "discount", "culture", "currency", "flight", "fare-basis", "return-flight", "return-fare-basis", "token":
-				values[k] = v
+				values[key] = value
 			default:
-				return flightLinkOptions{}, fmt.Errorf("unknown option --%s", k)
+				return flightLinkOptions{}, fmt.Errorf("unknown option --%s", key)
 			}
 			continue
 		}
@@ -65,39 +59,28 @@ func parseFlightLinkOptions(args []string) (flightLinkOptions, error) {
 	if err != nil {
 		return flightLinkOptions{}, fmt.Errorf("destination: %w", err)
 	}
-	parseDate := func(key string) (time.Time, error) {
-		if values[key] == "" {
-			return time.Time{}, nil
-		}
-		return dateparse.ParseDate(values[key], time.Now())
-	}
-	date, err := parseDate("date")
+	now := time.Now()
+	date, err := parseOptionalDate(values["date"], now)
 	if err != nil {
 		return flightLinkOptions{}, err
 	}
-	returnDate, err := parseDate("return")
+	returnDate, err := parseOptionalDate(values["return"], now)
 	if err != nil {
 		return flightLinkOptions{}, err
 	}
-	integer := func(key string, fallback int) (int, error) {
-		if values[key] == "" {
-			return fallback, nil
-		}
-		return strconv.Atoi(values[key])
-	}
-	adults, err := integer("adults", 1)
+	adults, err := parseIntOption(values["adults"], 1)
 	if err != nil {
 		return flightLinkOptions{}, fmt.Errorf("invalid --adults: %w", err)
 	}
-	children, err := integer("children", 0)
+	children, err := parseIntOption(values["children"], 0)
 	if err != nil {
 		return flightLinkOptions{}, fmt.Errorf("invalid --children: %w", err)
 	}
-	infants, err := integer("infants", 0)
+	infants, err := parseIntOption(values["infants"], 0)
 	if err != nil {
 		return flightLinkOptions{}, fmt.Errorf("invalid --infants: %w", err)
 	}
-	discount, err := integer("discount", 0)
+	discount, err := parseIntOption(values["discount"], 0)
 	if err != nil {
 		return flightLinkOptions{}, fmt.Errorf("invalid --discount: %w", err)
 	}

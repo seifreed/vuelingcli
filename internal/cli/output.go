@@ -7,13 +7,20 @@ import (
 	toon "github.com/toon-format/toon-go"
 )
 
-func (cli *CLI) writeTOON(value any) error {
-	encoded, err := encodeTOON(value)
-	if err != nil {
+func (cli *CLI) writeStructured(value any, format string) error {
+	switch format {
+	case "json":
+		return json.NewEncoder(cli.stdout).Encode(value)
+	case "toon":
+		encoded, err := encodeTOON(value)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(cli.stdout, encoded)
 		return err
+	default:
+		return fmt.Errorf("unsupported output format %q", format)
 	}
-	_, err = fmt.Fprintln(cli.stdout, encoded)
-	return err
 }
 
 func encodeTOON(value any) (string, error) {

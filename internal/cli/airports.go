@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -14,9 +13,9 @@ func (cli *CLI) airportSearch(args []string) error {
 	for _, arg := range args {
 		switch {
 		case arg == "--json" || arg == "--toon":
-			requested := arg[2:]
-			if format != "" && format != requested {
-				return fmt.Errorf("--json and --toon cannot be used together")
+			requested, err := setOutputFormat(format, arg)
+			if err != nil {
+				return err
 			}
 			format = requested
 		case strings.HasPrefix(arg, "-"):
@@ -33,11 +32,8 @@ func (cli *CLI) airportSearch(args []string) error {
 		term = query[0]
 	}
 	results := airports.Search(term)
-	if format == "json" {
-		return json.NewEncoder(cli.stdout).Encode(results)
-	}
-	if format == "toon" {
-		return cli.writeTOON(results)
+	if format != "" {
+		return cli.writeStructured(results, format)
 	}
 	for _, airport := range results {
 		if _, err := fmt.Fprintf(cli.stdout, "%-4s %s\n", airport.Code, airport.City); err != nil {

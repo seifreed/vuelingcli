@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -33,11 +32,8 @@ func (cli *CLI) calendar(args []string) error {
 			return err
 		}
 		price["url"] = link
-		if options.format == "json" {
-			return json.NewEncoder(cli.stdout).Encode(price)
-		}
-		if options.format == "toon" {
-			return cli.writeTOON(price)
+		if options.format != "" {
+			return cli.writeStructured(price, options.format)
 		}
 		_, err = fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["route"], options.date.Format("02/01/2006"), price["fare"])
 		return err
@@ -47,11 +43,8 @@ func (cli *CLI) calendar(args []string) error {
 			return fmt.Errorf("open calendar link: %w", err)
 		}
 	}
-	if options.format == "json" {
-		return json.NewEncoder(cli.stdout).Encode(map[string]string{"url": link})
-	}
-	if options.format == "toon" {
-		return cli.writeTOON(map[string]string{"url": link})
+	if options.format != "" {
+		return cli.writeStructured(map[string]string{"url": link}, options.format)
 	}
 	_, err = fmt.Fprintln(cli.stdout, link)
 	return err
@@ -77,11 +70,8 @@ func (cli *CLI) calendarMonth(reader web.PageReader, link, returnDate, format st
 		}
 		result["returnDays"], result["returnCheapest"] = calendar.ReturnDays, returnCheapest
 	}
-	if format == "json" {
-		return json.NewEncoder(cli.stdout).Encode(result)
-	}
-	if format == "toon" {
-		return cli.writeTOON(result)
+	if format != "" {
+		return cli.writeStructured(result, format)
 	}
 	if err := cli.printCalendarDays(calendar.Price["route"], calendar.Days, cheapest); err != nil {
 		return err

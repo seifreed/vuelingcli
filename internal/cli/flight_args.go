@@ -2,11 +2,9 @@ package cli
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
-	dateparse "github.com/seifreed/vuelingcli/internal/date"
 	"github.com/seifreed/vuelingcli/internal/vueling"
 )
 
@@ -28,10 +26,11 @@ func parseFlightOptions(args []string) (flightOptions, error) {
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--json" || a == "--toon" {
-			if format != "" {
-				return flightOptions{}, fmt.Errorf("--json and --toon cannot be used together")
+			requested, err := setOutputFormat(format, a)
+			if err != nil {
+				return flightOptions{}, err
 			}
-			format = a[2:]
+			format = requested
 			continue
 		}
 		if a == "--nearby" {
@@ -44,20 +43,16 @@ func parseFlightOptions(args []string) (flightOptions, error) {
 			continue
 		}
 		if strings.HasPrefix(a, "--") {
-			k, v, hasValue := strings.Cut(a[2:], "=")
-			if !hasValue {
-				remaining := args[i:]
-				if len(remaining) < 2 {
-					return flightOptions{}, fmt.Errorf("--%s requires a value", k)
-				}
-				v = remaining[1]
-				i++
+			key, value, next, err := parseLongOption(args, i)
+			if err != nil {
+				return flightOptions{}, err
 			}
-			switch k {
+			i = next
+			switch key {
 			case "date", "return", "adults", "children", "infants", "currency", "cdp-url", "after", "before", "return-after", "return-before", "limit":
-				values[k] = v
+				values[key] = value
 			default:
-				return flightOptions{}, fmt.Errorf("unknown option --%s", k)
+				return flightOptions{}, fmt.Errorf("unknown option --%s", key)
 			}
 			continue
 		}
@@ -77,39 +72,28 @@ func parseFlightOptions(args []string) (flightOptions, error) {
 	if err != nil {
 		return flightOptions{}, fmt.Errorf("destination: %w", err)
 	}
-	parseDate := func(key string) (time.Time, error) {
-		if values[key] == "" {
-			return time.Time{}, nil
-		}
-		return dateparse.ParseDate(values[key], time.Now())
-	}
-	date, err := parseDate("date")
+	now := time.Now()
+	date, err := parseOptionalDate(values["date"], now)
 	if err != nil {
 		return flightOptions{}, err
 	}
-	returnDate, err := parseDate("return")
+	returnDate, err := parseOptionalDate(values["return"], now)
 	if err != nil {
 		return flightOptions{}, err
 	}
-	integer := func(key string, fallback int) (int, error) {
-		if values[key] == "" {
-			return fallback, nil
-		}
-		return strconv.Atoi(values[key])
-	}
-	adults, err := integer("adults", 1)
+	adults, err := parseIntOption(values["adults"], 1)
 	if err != nil {
 		return flightOptions{}, fmt.Errorf("invalid --adults: %w", err)
 	}
-	children, err := integer("children", 0)
+	children, err := parseIntOption(values["children"], 0)
 	if err != nil {
 		return flightOptions{}, fmt.Errorf("invalid --children: %w", err)
 	}
-	infants, err := integer("infants", 0)
+	infants, err := parseIntOption(values["infants"], 0)
 	if err != nil {
 		return flightOptions{}, fmt.Errorf("invalid --infants: %w", err)
 	}
-	if filter.Limit, err = integer("limit", 0); err != nil || (values["limit"] != "" && filter.Limit < 1) {
+	if filter.Limit, err = parseIntOption(values["limit"], 0); err != nil || (values["limit"] != "" && filter.Limit < 1) {
 		return flightOptions{}, fmt.Errorf("invalid --limit: must be a whole number of at least 1")
 	}
 	clock := func(key string, fallback int) (int, error) {

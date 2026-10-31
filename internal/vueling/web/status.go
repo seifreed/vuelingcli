@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -107,13 +106,8 @@ func FlightStatusFromPage(ctx context.Context, reader PageReader, flight, origin
 	}
 	u, _ := url.Parse(statusPage)
 	u.RawQuery = query.Encode()
-	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
-	defer cancel()
-	output, err := reader.ReadPage(ctx, u.String(), flightStatusScript)
+	output, err := readPage(ctx, reader, u.String(), flightStatusScript, 90*time.Second, "Vueling did not render flight status before the timeout")
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("Vueling did not render flight status before the timeout: %w", err)
-		}
 		return nil, err
 	}
 	var failure struct{ Error string }

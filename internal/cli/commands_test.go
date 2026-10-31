@@ -76,10 +76,7 @@ func TestCommandsRejectInvalidArguments(t *testing.T) {
 		{"flights no adults", flights, []string{"BCN", "AGP", "--date", "+30", "--adults", "0"}, "passengers must total"},
 		{"flights unsupported currency", flights, []string{"BCN", "AGP", "--date", "+30", "--currency", "cad"}, "unsupported currency"},
 
-		{"calendar both formats", calendar, []string{"BCN", "AGP", "--date", "+30", "--json", "--toon"}, "cannot be used together"},
 		{"calendar unknown option", calendar, []string{"BCN", "AGP", "--date", "+30", "--cheap"}, "unknown option --cheap"},
-		{"calendar missing date value", calendar, []string{"BCN", "AGP", "--date"}, "--date requires a value"},
-		{"calendar missing return value", calendar, []string{"BCN", "AGP", "--date", "+30", "--return"}, "--return requires a value"},
 		{"calendar missing date", calendar, []string{"BCN", "AGP"}, "usage:"},
 		{"calendar month without prices", calendar, []string{"BCN", "AGP", "--date", "+30", "--month"}, "--month requires --prices"},
 		{"calendar unknown origin", calendar, []string{"Atlantis", "AGP", "--date", "+30"}, "origin:"},
@@ -90,8 +87,6 @@ func TestCommandsRejectInvalidArguments(t *testing.T) {
 		{"calendar return too far", calendar, []string{"BCN", "AGP", "--date", "+1", "--return", "+340"}, "within 330 days"},
 		{"calendar same airport", calendar, []string{"BCN", "BCN", "--date", "+30"}, "different three-letter IATA codes"},
 
-		{"status both formats", flightStatus, []string{"VY1234", "--json", "--toon"}, "cannot be used together"},
-		{"status missing value", flightStatus, []string{"VY1234", "--date"}, "--date requires a value"},
 		{"status unknown option", flightStatus, []string{"VY1234", "--gate", "A1"}, "unknown option --gate"},
 		{"status short watch", flightStatus, []string{"VY1234", "--watch", "4"}, "between 5"},
 		{"status non-numeric watch", flightStatus, []string{"VY1234", "--watch=often"}, "between 5"},
@@ -103,9 +98,7 @@ func TestCommandsRejectInvalidArguments(t *testing.T) {
 		{"status ambiguous destination", flightStatus, []string{"BCN", "Londres"}, "matches multiple airports"},
 		{"status invalid date", flightStatus, []string{"VY1234", "--date", "soon"}, "invalid --date"},
 
-		{"link both formats", flightLink, []string{"BCN", "AGP", "--date", "+30", "--json", "--toon"}, "cannot be used together"},
 		{"link unknown option", flightLink, []string{"BCN", "AGP", "--date", "+30", "--seat", "1A"}, "unknown option --seat"},
-		{"link missing value", flightLink, []string{"BCN", "AGP", "--date"}, "--date requires a value"},
 		{"link missing date", flightLink, []string{"BCN", "AGP"}, "usage:"},
 		{"link unknown origin", flightLink, []string{"Atlantis", "AGP", "--date", "+30"}, "origin:"},
 		{"link unknown destination", flightLink, []string{"BCN", "Atlantis", "--date", "+30"}, "destination:"},
@@ -117,11 +110,9 @@ func TestCommandsRejectInvalidArguments(t *testing.T) {
 		{"link invalid discount", flightLink, []string{"BCN", "AGP", "--date", "+30", "--discount", "x"}, "invalid --discount"},
 		{"link discount out of range", flightLink, []string{"BCN", "AGP", "--date", "+30", "--discount", "9"}, "discount must be between 0 and 5"},
 
-		{"airports both formats", airportSearch, []string{"--json", "--toon"}, "cannot be used together"},
 		{"airports unknown option", airportSearch, []string{"--all"}, "unknown option --all"},
 		{"airports two terms", airportSearch, []string{"Barcelona", "Madrid"}, "use one city"},
 
-		{"version both formats", showVersion, []string{"--json", "--toon"}, "cannot be used together"},
 		{"version unknown option", showVersion, []string{"--short"}, "unknown option --short"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

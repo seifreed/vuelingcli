@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os/exec"
 	"runtime"
@@ -27,11 +26,8 @@ func (cli *CLI) flightLink(args []string) error {
 			return fmt.Errorf("open flight link: %w", err)
 		}
 	}
-	if options.format == "json" {
-		return json.NewEncoder(cli.stdout).Encode(map[string]string{"url": link})
-	}
-	if options.format == "toon" {
-		return cli.writeTOON(map[string]string{"url": link})
+	if options.format != "" {
+		return cli.writeStructured(map[string]string{"url": link}, options.format)
 	}
 	_, err = fmt.Fprintln(cli.stdout, link)
 	return err

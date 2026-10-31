@@ -4,7 +4,6 @@ package web
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -125,13 +124,8 @@ func readCalendar(ctx context.Context, reader PageReader, calendarURL, returnDat
 		u.RawQuery = query.Encode()
 		calendarURL = u.String()
 	}
-	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
-	defer cancel()
-	output, err := reader.ReadPage(ctx, calendarURL, renderedPriceScript)
+	output, err := readPage(ctx, reader, calendarURL, renderedPriceScript, 90*time.Second, "Vueling did not render the requested calendar price")
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return vueling.CalendarMonth{}, fmt.Errorf("Vueling did not render the requested calendar price: %w", err)
-		}
 		return vueling.CalendarMonth{}, err
 	}
 	return decodeCalendar(output)
@@ -173,14 +167,9 @@ func FlightsFromPage(ctx context.Context, reader PageReader, searchURL, outbound
 		return nil, fmt.Errorf("invalid Vueling search URL: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
-	defer cancel()
 	var cards []renderedFlight
-	output, err := reader.ReadPage(ctx, searchURL, renderedFlightsScript)
+	output, err := readPage(ctx, reader, searchURL, renderedFlightsScript, 45*time.Second, "Vueling did not render flight offers; the session may need attention or Vueling may be temporarily unavailable")
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("Vueling did not render flight offers; the session may need attention or Vueling may be temporarily unavailable: %w", err)
-		}
 		return nil, err
 	}
 	if err := json.Unmarshal(output, &cards); err != nil {

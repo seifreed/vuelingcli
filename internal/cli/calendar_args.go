@@ -3,8 +3,6 @@ package cli
 import (
 	"fmt"
 	"time"
-
-	dateparse "github.com/seifreed/vuelingcli/internal/date"
 )
 
 type calendarOptions struct {
@@ -27,29 +25,23 @@ func parseCalendarOptions(args []string, now time.Time) (calendarOptions, error)
 			prices = true
 		case a == "--month":
 			month = true
-		case a == "--date":
-			remaining := args[i:]
-			if len(remaining) < 2 {
-				return calendarOptions{}, fmt.Errorf("--date requires a value")
+		case a == "--date" || a == "--return" || (len(a) > 9 && a[:9] == "--return=") || (len(a) > 7 && a[:7] == "--date="):
+			key, value, next, err := parseLongOption(args, i)
+			if err != nil {
+				return calendarOptions{}, err
 			}
-			dateValue = remaining[1]
-			i++
-		case a == "--return":
-			remaining := args[i:]
-			if len(remaining) < 2 {
-				return calendarOptions{}, fmt.Errorf("--return requires a value")
+			i = next
+			if key == "date" {
+				dateValue = value
+			} else {
+				returnValue = value
 			}
-			returnValue = remaining[1]
-			i++
-		case len(a) > 9 && a[:9] == "--return=":
-			returnValue = a[9:]
-		case len(a) > 7 && a[:7] == "--date=":
-			dateValue = a[7:]
 		case a == "--json" || a == "--toon":
-			if format != "" {
-				return calendarOptions{}, fmt.Errorf("--json and --toon cannot be used together")
+			requested, err := setOutputFormat(format, a)
+			if err != nil {
+				return calendarOptions{}, err
 			}
-			format = a[2:]
+			format = requested
 		case len(a) > 0 && a[0] == '-':
 			return calendarOptions{}, fmt.Errorf("unknown option %s", a)
 		default:
@@ -70,16 +62,16 @@ func parseCalendarOptions(args []string, now time.Time) (calendarOptions, error)
 	if err != nil {
 		return calendarOptions{}, fmt.Errorf("destination: %w", err)
 	}
-	date, err := dateparse.ParseDate(dateValue, now)
+	date, err := parseOptionalDate(dateValue, now)
 	if err != nil {
 		return calendarOptions{}, err
 	}
 	var returnDate string
+	parsed, err := parseOptionalDate(returnValue, now)
+	if err != nil {
+		return calendarOptions{}, err
+	}
 	if returnValue != "" {
-		parsed, err := dateparse.ParseDate(returnValue, now)
-		if err != nil {
-			return calendarOptions{}, err
-		}
 		if parsed.Before(date) {
 			return calendarOptions{}, fmt.Errorf("return date must be on or after departure date")
 		}

@@ -34,11 +34,8 @@ func (cli *CLI) flightStatus(args []string) error {
 	if err != nil {
 		return err
 	}
-	switch options.format {
-	case "json":
-		return json.NewEncoder(cli.stdout).Encode(statuses)
-	case "toon":
-		return cli.writeTOON(statuses)
+	if options.format != "" {
+		return cli.writeStructured(statuses, options.format)
 	}
 	for _, s := range statuses {
 		if _, err := fmt.Fprintln(cli.stdout, statusLine(s)); err != nil {

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -24,38 +23,35 @@ func parseFlightStatusOptions(args []string) (flightStatusOptions, error) {
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--json" || a == "--toon" {
-			if format != "" {
-				return flightStatusOptions{}, fmt.Errorf("--json and --toon cannot be used together")
+			requested, err := setOutputFormat(format, a)
+			if err != nil {
+				return flightStatusOptions{}, err
 			}
-			format = a[2:]
+			format = requested
 			continue
 		}
 		if !strings.HasPrefix(a, "--") {
 			positional = append(positional, a)
 			continue
 		}
-		k, v, hasValue := strings.Cut(a[2:], "=")
-		if !hasValue {
-			remaining := args[i:]
-			if len(remaining) < 2 {
-				return flightStatusOptions{}, fmt.Errorf("--%s requires a value", k)
-			}
-			v = remaining[1]
-			i++
+		key, value, next, err := parseLongOption(args, i)
+		if err != nil {
+			return flightStatusOptions{}, err
 		}
-		switch k {
+		i = next
+		switch key {
 		case "date":
-			dateValue = v
+			dateValue = value
 		case "cdp-url":
-			endpoint = v
+			endpoint = value
 		case "watch":
-			n, err := strconv.Atoi(v)
+			n, err := parseIntOption(value, 0)
 			if err != nil || int64(n) < 5 || int64(n) > maxWatchMinutes {
 				return flightStatusOptions{}, fmt.Errorf("--watch must be a whole number of minutes between 5 and %d", maxWatchMinutes)
 			}
 			watch = n
 		default:
-			return flightStatusOptions{}, fmt.Errorf("unknown option --%s", k)
+			return flightStatusOptions{}, fmt.Errorf("unknown option --%s", key)
 		}
 	}
 	if watch > 0 && format == "toon" {
