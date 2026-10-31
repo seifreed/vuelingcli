@@ -18,7 +18,7 @@ const version = "0.1.0"
 
 func main() {
 	if len(os.Args) == 1 || os.Args[1] == "help" || os.Args[1] == "--help" || os.Args[1] == "-h" {
-		fmt.Print("vueling — unofficial read-only Vueling CLI\n\nUsage:\n  vueling <command> [options]\n\nCommands:\n  search      Search flights (not available; Vueling API access required)\n  calendar    Build a Vueling price-calendar link\n  link        Build a flight-selection link\n  airports    Find common airport codes\n  help        Show this help\n  version     Show version\n\nRun 'vueling <command> --help' for command options.\n")
+		fmt.Print("vueling — unofficial read-only Vueling CLI\n\nUsage:\n  vueling <command> [options]\n\nCommands:\n  search      Build an official flight-search link\n  calendar    Build a Vueling price-calendar link\n  link        Build a flight-selection link\n  airports    Find common airport codes\n  help        Show this help\n  version     Show version\n\nRun 'vueling <command> --help' for command options.\n")
 		return
 	}
 	switch os.Args[1] {
@@ -26,11 +26,13 @@ func main() {
 		fmt.Printf("vueling %s\n", version)
 	case "search":
 		if len(os.Args) > 2 && (os.Args[2] == "--help" || os.Args[2] == "-h") {
-			fmt.Print("Live flight search is not available in the CLI.\n\nUse 'vueling link <origin> <destination> --date <date>' to open a search on Vueling's website.\n")
+			fmt.Print("Build an official Vueling flight-search link. Live prices are shown on Vueling's website.\n\nUsage:\n  vueling search <origin> <destination> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--json|--toon]\n")
 			return
 		}
-		fmt.Fprintln(os.Stderr, "search: live flight search is unavailable; use 'vueling link' to search on Vueling's website")
-		os.Exit(1)
+		if err := flightLink(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "search: %v\n", err)
+			os.Exit(2)
+		}
 	case "airports":
 		if len(os.Args) > 2 && (os.Args[2] == "--help" || os.Args[2] == "-h") {
 			fmt.Print("Find Vueling airport codes\n\nUsage:\n  vueling airports <city, airport name, or IATA code> [--json|--toon]\n")
