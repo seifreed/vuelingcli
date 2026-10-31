@@ -293,7 +293,7 @@ end run`
 			return nil, fmt.Errorf("Chrome blocks JavaScript from Apple Events; enable View > Developer > Allow JavaScript from Apple Events, then retry")
 		}
 		if strings.Contains(message, "vueling_no_offers") {
-			return nil, fmt.Errorf("Vueling did not render results; the session may need attention or Vueling may be temporarily unavailable")
+			return nil, fmt.Errorf("Vueling did not render results; the tab was left open in Chrome so you can check it, and a manual search there shows whether Vueling is unavailable or the session needs attention. Retry later rather than in a loop")
 		}
 		return nil, fmt.Errorf("could not read the Vueling tab through Chrome Apple Events: %w", err)
 	}
