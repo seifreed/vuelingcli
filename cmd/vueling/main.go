@@ -387,11 +387,11 @@ func openURL(link string) error {
 
 func calendar(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Read a Vueling calendar price or build its link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--prices] [--open] [--json|--toon]\n")
+		fmt.Print("Read Vueling calendar prices or build its link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices] [--open] [--json|--toon]\n")
 		return nil
 	}
 	var positional []string
-	dateValue, format := "", ""
+	dateValue, returnValue, format := "", "", ""
 	open, prices := false, false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
@@ -406,6 +406,14 @@ func calendar(args []string) error {
 				return fmt.Errorf("--date requires a value")
 			}
 			dateValue = args[i]
+		case a == "--return":
+			i++
+			if i == len(args) {
+				return fmt.Errorf("--return requires a value")
+			}
+			returnValue = args[i]
+		case len(a) > 9 && a[:9] == "--return=":
+			returnValue = a[9:]
 		case len(a) > 7 && a[:7] == "--date=":
 			dateValue = a[7:]
 		case a == "--json" || a == "--toon":
@@ -420,7 +428,7 @@ func calendar(args []string) error {
 		}
 	}
 	if len(positional) != 2 || dateValue == "" {
-		return fmt.Errorf("usage: vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--prices] [--open] [--json|--toon]")
+		return fmt.Errorf("usage: vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices] [--open] [--json|--toon]")
 	}
 	origin, err := resolveAirport(positional[0])
 	if err != nil {
@@ -434,12 +442,23 @@ func calendar(args []string) error {
 	if err != nil {
 		return err
 	}
+	var returnDate string
+	if returnValue != "" {
+		parsed, err := search.ParseDate(returnValue, time.Now())
+		if err != nil {
+			return err
+		}
+		if parsed.Before(date) {
+			return fmt.Errorf("return date must be on or after departure date")
+		}
+		returnDate = parsed.Format("02/01/2006")
+	}
 	link, err := vueling.CalendarURL(origin, destination, date)
 	if err != nil {
 		return err
 	}
 	if prices {
-		price, err := vueling.CalendarPricesFromBrowser(context.Background(), "", link)
+		price, err := vueling.CalendarPricesFromBrowser(context.Background(), "", link, returnDate)
 		if err != nil {
 			return err
 		}

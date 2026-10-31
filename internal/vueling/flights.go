@@ -71,17 +71,29 @@ const renderedFlightsScript = `(() => {
 })()`
 
 const renderedPriceScript = `(() => {
-  const day = new URL(location.href).searchParams.get('dateComplete')?.slice(0, 2);
-  const offer = [...document.querySelectorAll('button')].find(b => new RegExp('^' + Number(day) + '\\s').test((b.innerText || '').trim()) && /(?:€|EUR|£|USD|\\$)/.test(b.innerText || ''));
+  const params = new URL(location.href).searchParams;
+  const day = params.get('dateComplete')?.slice(0, 2);
+  const tables = [...document.querySelectorAll('table')];
+  const findFare = (table, value) => [...(table?.querySelectorAll('button') || [])].find(b => new RegExp('^' + Number(value) + '\\s').test((b.innerText || '').trim()) && /(?:€|EUR|£|USD|\\$)/.test(b.innerText || ''))?.innerText.match(/[0-9]+(?:[.,][0-9]{1,2})?\s*(?:EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\\$)/i)?.[0]?.trim();
+  const fare = findFare(tables[0], day);
+  const returnDate = params.get('vuelingcliReturnDate') || '';
+  const returnFare = returnDate ? findFare(tables[1], returnDate.slice(0, 2)) : '';
   const route = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^IDA:/i.test(t));
-  const fare = offer?.innerText.match(/[0-9]+(?:[.,][0-9]{1,2})?\s*(?:EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\$)/i)?.[0];
-  return fare && route ? {route, date: new URL(location.href).searchParams.get('dateComplete'), fare: fare.trim()} : [];
+  const returnRoute = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^VUELTA:/i.test(t));
+  return fare && route && (!returnDate || returnFare) ? {route, date: params.get('dateComplete'), fare, returnRoute, returnDate, returnFare} : [];
 })()`
 
 // CalendarPricesFromBrowser reads the requested outbound fare from the public rendered calendar.
-func CalendarPricesFromBrowser(ctx context.Context, endpoint, calendarURL string) (map[string]string, error) {
+func CalendarPricesFromBrowser(ctx context.Context, endpoint, calendarURL, returnDate string) (map[string]string, error) {
 	if _, err := url.ParseRequestURI(calendarURL); err != nil {
 		return nil, fmt.Errorf("invalid Vueling calendar URL: %w", err)
+	}
+	if returnDate != "" {
+		u, _ := url.Parse(calendarURL)
+		query := u.Query()
+		query.Set("vuelingcliReturnDate", returnDate)
+		u.RawQuery = query.Encode()
+		calendarURL = u.String()
 	}
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
