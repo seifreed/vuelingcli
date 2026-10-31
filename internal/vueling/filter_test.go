@@ -53,3 +53,22 @@ func TestParseClock(t *testing.T) {
 		}
 	}
 }
+
+func TestFilterFlightsOnRenderedConnections(t *testing.T) {
+	// Cards read from Vueling for SVQ-AMS on 2026-11-12; every option connects in BCN.
+	card := func(flight, departure, fare, itinerary string) Flight {
+		return Flight{Direction: "outbound", Flight: flight, Departure: departure, Fare: fare, Itinerary: itinerary}
+	}
+	flights := []Flight{
+		card("VY1383", "06:45", "282", "06:45 SVQ Sevilla Conexión en BCN: 1 h 40 min Ámsterdam AMS 12:40 Vueling VY1383 Vueling VY1050 SELECCIONAR VUELO POR 282 EUR 282 €"),
+		card("VY1381", "09:00", "303", "09:00 SVQ Sevilla Conexión en BCN: 2 h 40 min Ámsterdam AMS 15:55 Vueling VY1381 Vueling VY1058 SELECCIONAR VUELO POR 303 EUR 303 €"),
+		card("VY1393", "21:10", "274", "21:10 SVQ Sevilla Conexión en BCN: 11 h 15 min Ámsterdam AMS 12:40 +1 día Vueling VY1393 Vueling VY1050 SELECCIONAR VUELO POR 274 EUR 274 €"),
+	}
+	if got := FilterFlights(flights, FlightFilter{Direct: true}); len(got) != 0 {
+		t.Fatalf("--direct kept connections: %v", got)
+	}
+	got := FilterFlights(flights, FlightFilter{Cheapest: true, Limit: 2})
+	if len(got) != 2 || got[0].Fare != "274" || got[1].Fare != "282" {
+		t.Fatalf("cheapest limit 2 = %v", got)
+	}
+}
