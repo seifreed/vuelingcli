@@ -27,6 +27,11 @@ type Flight struct {
 	Fare      string `json:"fare"`
 	Currency  string `json:"currency"`
 	Itinerary string `json:"itinerary"`
+	// Stops counts connections; Flights lists every VY flight number on the card
+	// in order, and Via the connection airports it names ("Conexión en BCN").
+	Stops   int      `json:"stops"`
+	Flights []string `json:"flights,omitempty"`
+	Via     []string `json:"via,omitempty"`
 }
 
 type renderedFlight struct {
@@ -351,6 +356,8 @@ func parseRenderedFlight(card renderedFlight, outboundDate, returnDate string) (
 	case "$":
 		currency = "USD"
 	}
+	itinerary := strings.Join(strings.Fields(card.Details), " ")
+	legs := readLegs(flightNumber, itinerary)
 	return Flight{
 		Direction: direction,
 		Date:      date,
@@ -359,6 +366,9 @@ func parseRenderedFlight(card renderedFlight, outboundDate, returnDate string) (
 		Arrival:   times[1],
 		Fare:      strings.ReplaceAll(fare[1], ",", "."),
 		Currency:  currency,
-		Itinerary: strings.Join(strings.Fields(card.Details), " "),
+		Itinerary: itinerary,
+		Stops:     legs.stops,
+		Flights:   legs.flights,
+		Via:       legs.via,
 	}, nil
 }

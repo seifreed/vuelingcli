@@ -25,8 +25,8 @@ Es de **solo lectura**: no reserva, no paga, no selecciona tarifas ni modifica v
 ```console
 $ vueling flights SVQ AMS --date 12/11/2026 --cheapest --limit 2
 https://tickets.vueling.com/booking/flightSearch?...
-OUTBOUND 2026-11-12 VY1393 21:10–12:40 274 EUR | 21:10 SVQ Sevilla Conexión en BCN: 11 h 15 min Ámsterdam AMS 12:40 +1 día ...
-OUTBOUND 2026-11-12 VY1383 06:45–12:40 282 EUR | 06:45 SVQ Sevilla Conexión en BCN: 1 h 40 min Ámsterdam AMS 12:40 ...
+OUTBOUND 2026-11-12 VY1393 21:10–12:40 274 EUR | 1 escala vía BCN · VY1393+VY1050 | 21:10 SVQ Sevilla Conexión en BCN: 11 h 15 min Ámsterdam AMS 12:40 +1 día ...
+OUTBOUND 2026-11-12 VY1383 06:45–12:40 282 EUR | 1 escala vía BCN · VY1383+VY1050 | 06:45 SVQ Sevilla Conexión en BCN: 1 h 40 min Ámsterdam AMS 12:40 ...
 
 $ vueling calendar BCN MLA --date 12/11/2026 --return 03/12/2026 --prices --json
 {"date":"12/11/2026","fare":"21 €","returnDate":"03/12/2026","returnFare":"28 €",...}
@@ -38,7 +38,7 @@ $ vueling calendar BCN MLA --date 12/11/2026 --return 03/12/2026 --prices --json
 
 | Característica | Descripción |
 |---------|-------------|
-| **Ofertas en vivo** | `flights` lee número de vuelo, horarios, tarifa e itinerario visibles, de ida y de vuelta |
+| **Ofertas en vivo** | `flights` lee número de vuelo, horarios, tarifa e itinerario visibles, de ida y de vuelta; en los vuelos con conexión indica las escalas, el aeropuerto de conexión y los números de vuelo de cada tramo |
 | **Filtros y orden** | `--cheapest`, `--direct`, `--after`, `--before` y `--limit`, aplicados a cada sentido por separado (`--return-after`/`--return-before` acotan solo la vuelta); `--nearby` añade el día más barato del mes según el calendario |
 | **Calendario de precios** | `calendar --prices` lee la tarifa del día de ida y de vuelta; `--month` lista el mes entero y marca el día más barato |
 | **Enlaces oficiales** | `search`/`link` generan la URL de selección de vuelos, con pasajeros, descuentos, moneda y vuelo concreto |

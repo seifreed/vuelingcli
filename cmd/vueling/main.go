@@ -242,7 +242,7 @@ func flights(args []string) error {
 	}
 	fmt.Printf("%s\n", searchURL)
 	for _, flight := range flights {
-		fmt.Printf("%-8s %s %s %s–%s %s %s | %s\n", strings.ToUpper(flight.Direction), flight.Date, flight.Flight, flight.Departure, flight.Arrival, flight.Fare, flight.Currency, flight.Itinerary)
+		fmt.Printf("%-8s %s %s %s–%s %s %s | %s%s\n", strings.ToUpper(flight.Direction), flight.Date, flight.Flight, flight.Departure, flight.Arrival, flight.Fare, flight.Currency, connectionSummary(flight), flight.Itinerary)
 	}
 	if outboundNearby != nil {
 		fmt.Printf("cheapest nearby: %s from %s\n", outboundNearby.Date, outboundNearby.Fare)
@@ -251,6 +251,25 @@ func flights(args []string) error {
 		fmt.Printf("cheapest nearby return: %s from %s\n", returnNearby.Date, returnNearby.Fare)
 	}
 	return nil
+}
+
+// connectionSummary renders a connecting flight's legs, such as
+// "1 escala vía BCN · VY1383+VY1050 | ", and nothing for direct flights.
+func connectionSummary(flight vueling.Flight) string {
+	if flight.Stops == 0 {
+		return ""
+	}
+	summary := fmt.Sprintf("%d escala", flight.Stops)
+	if flight.Stops > 1 {
+		summary += "s"
+	}
+	if len(flight.Via) > 0 {
+		summary += " vía " + strings.Join(flight.Via, ", ")
+	}
+	if len(flight.Flights) > 1 {
+		summary += " · " + strings.Join(flight.Flights, "+")
+	}
+	return summary + " | "
 }
 
 // nearbyFares reads the cheapest calendar day of the outbound and return months,

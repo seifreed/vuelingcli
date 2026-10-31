@@ -63,14 +63,14 @@ vueling flights <origin city-or-IATA> <destination city-or-IATA> --date <date> [
 
 On macOS, opens a search tab in the current Chrome profile, submits the visible search form, and reads its rendered flight cards through Apple Events. Chrome requires **View > Developer > Allow JavaScript from Apple Events**; that setting permits scripts to run in pages, so enable it only with the user's explicit approval. On other systems, the command uses Chrome's local DevTools endpoint. That endpoint grants browser control and must stay on loopback; `--cdp-url` accepts only localhost or a loopback IP. Chrome 136+ ignores the command-line port switch for its default data directory, so do not copy the user's profile as a workaround. See [Chrome's remote-debugging changes](https://developer.chrome.com/blog/remote-debugging-port). The command reads no cookies, storage, tokens, or network requests and does not select any fare. A CAPTCHA, expired session, or Vueling service outage can prevent results from loading.
 
-The JSON/TOON object contains `url` and `flights`; each flight has `direction`, `date`, `flight`, `departure`, `arrival`, `fare`, `currency`, and the visible `itinerary` text. Currency defaults to `EUR` and uses the same supported values as `search`/`link`.
+The JSON/TOON object contains `url` and `flights`; each flight has `direction`, `date`, `flight`, `departure`, `arrival`, `fare`, `currency`, the visible `itinerary` text, and connection legs derived from that text: `stops` (number of connections, `0` for direct), `flights` (every VY flight number on the card, in order, deduplicated; the first equals `flight`), and `via` (connection airports the card names, e.g. `["BCN"]` from "Conexión en BCN"; omitted when none is named). Layover duration and per-leg times are not parsed; read them from `itinerary`. Human-readable output adds `1 escala vía BCN · VY1383+VY1050 |` before the itinerary of connecting offers and leaves direct offers unchanged. Currency defaults to `EUR` and uses the same supported values as `search`/`link`.
 
 Ranking and filters apply to outbound and return offers independently:
 
 | Option | Meaning |
 | --- | --- |
 | `--cheapest` | Sort by numeric fare, lowest first; ties keep Vueling's order and unparseable fares go last. |
-| `--direct` | Keep offers whose visible itinerary shows no stop: no `escala`/`conexión`/`stop` text and a single VY flight number. This is a heuristic over the rendered card text. |
+| `--direct` | Keep offers with `stops` = 0: no `escala`/`conexión`/`stop` text and a single VY flight number. This is a heuristic over the rendered card text. |
 | `--after HH:MM` | Keep departures at or after this time. |
 | `--before HH:MM` | Keep departures at or before this time; must not be earlier than `--after`. |
 | `--return-after HH:MM` `--return-before HH:MM` | Replace `--after`/`--before` for return offers; need `--return`. |
