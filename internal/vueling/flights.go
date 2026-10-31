@@ -88,7 +88,7 @@ const renderedPriceScript = `(() => {
     if (!selectedReturnMonth.startsWith(expectedMonth)) {
       const matches = [...document.querySelectorAll('button')].filter(b => (b.innerText || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().startsWith(expectedMonth));
       if (matches.length > 1) matches[1].click();
-      else return {error: 'requested return month is not in the visible month tabs'};
+      else return {error: 'does not show the requested return month in the visible month tabs; use calendar --open to inspect it'};
       return [];
     }
   }
@@ -102,6 +102,9 @@ const renderedPriceScript = `(() => {
   const route = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^IDA:/i.test(t));
   const returnRoute = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^VUELTA:/i.test(t));
   if (month) return days.length && route && (!returnDate || returnDays.length) ? {route, date: params.get('dateComplete'), fare, returnRoute, returnDate, returnFare, days, returnDays} : [];
+  const priced = table => [...(table?.querySelectorAll('button') || [])].some(b => /(?:€|EUR|£|USD|\$)/.test(b.innerText || ''));
+  if (route && priced(tables[0]) && !fare) return {error: 'shows no fare for the requested date'};
+  if (route && returnDate && priced(tables[1]) && !returnFare) return {error: 'shows no fare for the requested return date'};
   return fare && route && (!returnDate || returnFare) ? {route, date: params.get('dateComplete'), fare, returnRoute, returnDate, returnFare} : [];
 })()`
 
@@ -185,7 +188,7 @@ func decodeCalendar(output []byte) (CalendarMonth, error) {
 		}
 	}
 	if message := price["error"]; message != "" {
-		return CalendarMonth{}, fmt.Errorf("Vueling %s; use `calendar --open` to inspect return months outside the current view", message)
+		return CalendarMonth{}, fmt.Errorf("Vueling %s", message)
 	}
 	return CalendarMonth{Price: price, Days: monthDays(days, price["date"]), ReturnDays: monthDays(returnDays, price["returnDate"])}, nil
 }
@@ -270,7 +273,10 @@ func readPageWithAppleEvents(ctx context.Context, searchURL, pageScript string) 
 		repeat 90 times
 			try
 				set resultJSON to execute resultTab javascript ("JSON.stringify(" & pageScript & ")")
-				if resultJSON is not missing value and resultJSON is not "[]" then return resultJSON
+				if resultJSON is not missing value and resultJSON is not "[]" then
+					close resultTab
+					return resultJSON
+				end if
 			on error errorText
 				if errorText contains "Executing JavaScript through AppleScript is turned off" then error "VUELING_JS_DISABLED"
 			end try
