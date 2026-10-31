@@ -215,14 +215,17 @@ func openURL(link string) error {
 
 func calendar(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Build a Vueling price-calendar link\n\nUsage:\n  vueling calendar <origin IATA> <destination IATA> --date <date> [--json|--toon]\n")
+		fmt.Print("Build a Vueling price-calendar link\n\nUsage:\n  vueling calendar <origin IATA> <destination IATA> --date <date> [--open] [--json|--toon]\n")
 		return nil
 	}
 	var positional []string
 	dateValue, format := "", ""
+	open := false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
+		case a == "--open":
+			open = true
 		case a == "--date":
 			i++
 			if i == len(args) {
@@ -243,7 +246,7 @@ func calendar(args []string) error {
 		}
 	}
 	if len(positional) != 2 || dateValue == "" {
-		return fmt.Errorf("usage: vueling calendar <origin IATA> <destination IATA> --date <date> [--json|--toon]")
+		return fmt.Errorf("usage: vueling calendar <origin IATA> <destination IATA> --date <date> [--open] [--json|--toon]")
 	}
 	date, err := search.ParseDate(dateValue, time.Now())
 	if err != nil {
@@ -252,6 +255,11 @@ func calendar(args []string) error {
 	link, err := vueling.CalendarURL(positional[0], positional[1], date)
 	if err != nil {
 		return err
+	}
+	if open {
+		if err := openURL(link); err != nil {
+			return fmt.Errorf("open calendar link: %w", err)
+		}
 	}
 	if format == "json" {
 		return json.NewEncoder(os.Stdout).Encode(map[string]string{"url": link})
