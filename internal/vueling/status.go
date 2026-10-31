@@ -1,6 +1,16 @@
 package vueling
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
+
+var flightNumberPattern = regexp.MustCompile(`^VY\d{2,4}[A-Z]?$`)
+
+// IsFlightNumber reports whether s is a Vueling flight number such as VY1158 or VY392D.
+func IsFlightNumber(s string) bool {
+	return flightNumberPattern.MatchString(s)
+}
 
 // FlightStatus is one public flight-status card.
 type FlightStatus struct {
@@ -33,11 +43,19 @@ func ChangedStatuses(previous, next []FlightStatus) []FlightStatus {
 // AllFinal reports whether every card has a status that will not change again, such as landed or cancelled.
 func AllFinal(statuses []FlightStatus) bool {
 	for _, status := range statuses {
-		switch strings.ToLower(strings.TrimSpace(status.Status)) {
-		case "aterrizado", "cancelado", "landed", "cancelled":
-		default:
+		if !isFinal(status.Status) {
 			return false
 		}
 	}
 	return len(statuses) > 0
+}
+
+// isFinal also accepts Vueling's "No operado" for cancelled flights and "Aterrizado en …" for diverted landings.
+func isFinal(status string) bool {
+	status = strings.ToLower(strings.TrimSpace(status))
+	switch status {
+	case "cancelado", "no operado", "landed", "cancelled":
+		return true
+	}
+	return strings.HasPrefix(status, "aterrizado")
 }

@@ -39,3 +39,17 @@ func TestParseDateRejectsCalendarDateOverflow(t *testing.T) {
 		}
 	}
 }
+
+func TestParseDateAllowingPast(t *testing.T) {
+	now := time.Date(2026, 10, 31, 16, 0, 0, 0, time.UTC)
+	if _, err := ParseDate("2026-10-29", now); err == nil {
+		t.Fatal("ParseDate accepted a past date")
+	}
+	got, err := ParseDateAllowingPast("29/10/2026", now)
+	if err != nil || got.Format(time.DateOnly) != "2026-10-29" {
+		t.Fatalf("ParseDateAllowingPast = %v, %v; want 2026-10-29", got, err)
+	}
+	if got, err := ParseDateAllowingPast("hoy", now); err != nil || got.Format(time.DateOnly) != "2026-10-31" {
+		t.Fatalf("ParseDateAllowingPast(hoy) = %v, %v", got, err)
+	}
+}
