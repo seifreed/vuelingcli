@@ -18,6 +18,7 @@ Use Vueling's site in the user's browser for live prices and flight itineraries.
 - Stop before selecting a flight/fare or continuing into passenger details, seats, extras, or payment. Never book, pay, check in, or change a reservation.
 - Chrome 136+ ignores `--remote-debugging-port` for the default Chrome data directory; do not work around this by copying the user's profile. Never enable remote debugging, relaunch Chrome, or change its startup flags without the user's explicit approval. See [Chrome's remote-debugging changes](https://developer.chrome.com/blog/remote-debugging-port).
 - Stop if the site requires a CAPTCHA or login the user has not completed.
+- Run live lookups one at a time and only as needed; never retry in a loop. If tickets.vueling.com stays on "Cargando..." or `flights` reports no rendered results, stop and ask the user to try a manual search in their browser before retrying later.
 - Ask for origin, destination, dates, and passenger counts when missing. Do not infer travel dates.
 - Prefer `--json` for programmatic workflows and keep diagnostics on stderr.
 - Do not request or store account passwords or payment details.
