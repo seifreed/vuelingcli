@@ -3,6 +3,7 @@ package browser
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -91,19 +92,47 @@ func readPageWithDevTools(ctx context.Context, endpoint, pageURL, pageScript str
 	if err := chromedp.Run(tab, chromedp.Navigate(pageURL)); err != nil {
 		return nil, fmt.Errorf("open Vueling in Chrome: %w", err)
 	}
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-	for {
+	return waitForPageResult(ctx, tab.Done(), 500*time.Millisecond, func() (string, error) {
 		var result string
-		if err := chromedp.Run(tab, chromedp.Evaluate("JSON.stringify("+pageScript+")", &result)); err == nil && result != "" && result != "[]" {
+		err := chromedp.Run(tab, chromedp.Evaluate("JSON.stringify("+pageScript+")", &result))
+		return result, err
+	})
+}
+
+func waitForPageResult(ctx context.Context, done <-chan struct{}, interval time.Duration, evaluate func() (string, error)) ([]byte, error) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	var lastEvaluationErr error
+	pageError := func(ctxErr error) error {
+		if lastEvaluationErr == nil || errors.Is(lastEvaluationErr, ctxErr) {
+			return ctxErr
+		}
+		return errors.Join(ctxErr, fmt.Errorf("last page evaluation failed: %w", lastEvaluationErr))
+	}
+	for {
+		result, err := evaluate()
+		if err != nil {
+			lastEvaluationErr = err
+		} else {
+			lastEvaluationErr = nil
+		}
+		if err == nil && result != "" && result != "[]" {
 			return []byte(result), nil
 		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, pageError(ctxErr)
 		}
 		select {
-		case <-tab.Done():
-			return nil, fmt.Errorf("Vueling did not render results before the timeout")
+		case <-ctx.Done():
+			return nil, pageError(ctx.Err())
+		case <-done:
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, pageError(ctxErr)
+			}
+			if lastEvaluationErr != nil {
+				return nil, fmt.Errorf("evaluate Vueling page script: %w", lastEvaluationErr)
+			}
+			return nil, fmt.Errorf("Vueling browser tab closed before rendering results")
 		case <-ticker.C:
 		}
 	}
