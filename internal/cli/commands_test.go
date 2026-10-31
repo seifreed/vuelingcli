@@ -1,10 +1,11 @@
-package main
+package cli
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
-	"io"
+	"fmt"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -12,27 +13,38 @@ import (
 	"github.com/seifreed/vuelingcli/internal/vueling"
 )
 
-func captureStdout(t *testing.T, run func() error) (string, error) {
-	t.Helper()
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
+type testPageReader struct{}
+
+func (testPageReader) ReadPage(context.Context, string, string) ([]byte, error) {
+	return nil, fmt.Errorf("unexpected page read")
+}
+
+func newTestCLI() (*CLI, *bytes.Buffer, *bytes.Buffer) {
+	stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
+	readerFactory := func(string) vueling.PageReader { return testPageReader{} }
+	return New("test-version", stdout, stderr, readerFactory), stdout, stderr
+}
+
+func TestRunReturnsProcessStatus(t *testing.T) {
+	cli, stdout, stderr := newTestCLI()
+	if code := cli.Run(nil); code != 0 || !strings.Contains(stdout.String(), "Usage:") {
+		t.Fatalf("Run(nil) = %d, stdout %q; want help and exit 0", code, stdout)
 	}
-	original := os.Stdout
-	os.Stdout = writer
-	runErr := run()
-	os.Stdout = original
-	if err := writer.Close(); err != nil {
-		t.Fatal(err)
+	stdout.Reset()
+	if code := cli.Run([]string{"unknown"}); code != 2 || stderr.String() != "vueling: unknown command \"unknown\" (run 'vueling help')\n" {
+		t.Fatalf("Run(unknown) = %d, stderr %q; want unknown-command error and exit 2", code, stderr)
 	}
-	output, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatal(err)
+	stdout.Reset()
+	stderr.Reset()
+	if code := cli.Run([]string{"version", "--bad"}); code != 2 || stderr.String() != "version: unknown option --bad\n" {
+		t.Fatalf("Run(version --bad) = %d, stderr %q; want usage error and exit 2", code, stderr)
 	}
-	return string(output), runErr
 }
 
 func TestCommandsRejectInvalidArguments(t *testing.T) {
+	cli, _, _ := newTestCLI()
+	flights, calendar, flightStatus := cli.flights, cli.calendar, cli.flightStatus
+	flightLink, airportSearch, showVersion := cli.flightLink, cli.airportSearch, cli.showVersion
 	for _, tc := range []struct {
 		name    string
 		command func([]string) error
@@ -111,7 +123,7 @@ func TestCommandsRejectInvalidArguments(t *testing.T) {
 		{"version unknown option", showVersion, []string{"--short"}, "unknown option --short"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := captureStdout(t, func() error { return tc.command(tc.args) })
+			err := tc.command(tc.args)
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("%v error = %v, want it to contain %q", tc.args, err, tc.want)
 			}
@@ -120,14 +132,13 @@ func TestCommandsRejectInvalidArguments(t *testing.T) {
 }
 
 func TestFlightLinkPrintsURL(t *testing.T) {
-	output, err := captureStdout(t, func() error {
-		return flightLink(strings.Fields("barcelona agp --date +30 --adults=2 --children 1 --flight vy2115 --json"))
-	})
+	cli, output, _ := newTestCLI()
+	err := cli.flightLink(strings.Fields("barcelona agp --date +30 --adults=2 --children 1 --flight vy2115 --json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var result map[string]string
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
+	if err := json.Unmarshal(output.Bytes(), &result); err != nil {
 		t.Fatalf("invalid JSON %q: %v", output, err)
 	}
 	u, err := url.Parse(result["url"])
@@ -143,9 +154,8 @@ func TestFlightLinkPrintsURL(t *testing.T) {
 }
 
 func TestCalendarPrintsLink(t *testing.T) {
-	output, err := captureStdout(t, func() error {
-		return calendar(strings.Fields("BCN AGP --date +30 --return +35"))
-	})
+	cli, output, _ := newTestCLI()
+	err := cli.calendar(strings.Fields("BCN AGP --date +30 --return +35"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,42 +163,46 @@ func TestCalendarPrintsLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.TrimSpace(output) != want {
+	if strings.TrimSpace(output.String()) != want {
 		t.Fatalf("calendar printed %q, want %q", output, want)
 	}
 }
 
 func TestAirportSearchOutputs(t *testing.T) {
-	output, err := captureStdout(t, func() error { return airportSearch([]string{"heathrow", "--json"}) })
+	cli, output, _ := newTestCLI()
+	err := cli.airportSearch([]string{"heathrow", "--json"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(output, `"LHR"`) {
+	if !strings.Contains(output.String(), `"LHR"`) {
 		t.Fatalf("JSON airport search = %q, want LHR", output)
 	}
-	output, err = captureStdout(t, func() error { return airportSearch([]string{"heathrow"}) })
+	output.Reset()
+	err = cli.airportSearch([]string{"heathrow"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(output, "LHR ") {
+	if !strings.HasPrefix(output.String(), "LHR ") {
 		t.Fatalf("text airport search = %q, want an LHR row", output)
 	}
 }
 
 func TestShowVersion(t *testing.T) {
+	cli, output, _ := newTestCLI()
 	for _, tc := range []struct {
 		args []string
 		want string
 	}{
-		{nil, "vueling " + version + "\n"},
-		{[]string{"--json"}, `{"version":"` + version + `"}` + "\n"},
-		{[]string{"--toon", "--toon"}, "version: " + version + "\n"},
+		{nil, "vueling " + cli.version + "\n"},
+		{[]string{"--json"}, `{"version":"` + cli.version + `"}` + "\n"},
+		{[]string{"--toon", "--toon"}, "version: " + cli.version + "\n"},
 	} {
-		output, err := captureStdout(t, func() error { return showVersion(tc.args) })
+		output.Reset()
+		err := cli.showVersion(tc.args)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if output != tc.want {
+		if output.String() != tc.want {
 			t.Errorf("showVersion(%v) = %q, want %q", tc.args, output, tc.want)
 		}
 	}
@@ -220,16 +234,13 @@ func TestStatusLine(t *testing.T) {
 }
 
 func TestPrintCalendarDaysMarksCheapest(t *testing.T) {
+	cli, output, _ := newTestCLI()
 	days := []vueling.CalendarDay{{Date: "03/01/2027", Fare: "29 €"}, {Date: "04/01/2027", Fare: "40 €"}}
-	output, err := captureStdout(t, func() error {
-		printCalendarDays("IDA: Barcelona - Málaga", days, days[0])
-		return nil
-	})
-	if err != nil {
+	if err := cli.printCalendarDays("IDA: Barcelona - Málaga", days, days[0]); err != nil {
 		t.Fatal(err)
 	}
 	want := "IDA: Barcelona - Málaga\n03/01/2027: 29 € [cheapest]\n04/01/2027: 40 €\n"
-	if output != want {
+	if output.String() != want {
 		t.Fatalf("printCalendarDays = %q, want %q", output, want)
 	}
 }
