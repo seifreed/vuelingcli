@@ -6,12 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
-	dateparse "github.com/seifreed/vuelingcli/internal/date"
 	"github.com/seifreed/vuelingcli/internal/vueling"
 	"github.com/seifreed/vuelingcli/internal/vueling/web"
 )
@@ -23,78 +20,21 @@ func (cli *CLI) flightStatus(args []string) error {
 		}
 		return nil
 	}
-	var positional []string
-	dateValue, endpoint, format, watch := "today", "", "", 0
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		if a == "--json" || a == "--toon" {
-			if format != "" {
-				return fmt.Errorf("--json and --toon cannot be used together")
-			}
-			format = a[2:]
-			continue
-		}
-		if !strings.HasPrefix(a, "--") {
-			positional = append(positional, a)
-			continue
-		}
-		k, v, hasValue := strings.Cut(a[2:], "=")
-		if !hasValue {
-			remaining := args[i:]
-			if len(remaining) < 2 {
-				return fmt.Errorf("--%s requires a value", k)
-			}
-			v = remaining[1]
-			i++
-		}
-		switch k {
-		case "date":
-			dateValue = v
-		case "cdp-url":
-			endpoint = v
-		case "watch":
-			n, err := strconv.Atoi(v)
-			if err != nil || n < 5 {
-				return fmt.Errorf("--watch must be a whole number of minutes, at least 5")
-			}
-			watch = n
-		default:
-			return fmt.Errorf("unknown option --%s", k)
-		}
-	}
-	if watch > 0 && format == "toon" {
-		return fmt.Errorf("--watch cannot be used with --toon")
-	}
-	flight, origin, destination := "", "", ""
-	switch len(positional) {
-	case 1:
-		flight = strings.ToUpper(positional[0])
-	case 2:
-		var err error
-		if origin, err = resolveAirport(positional[0]); err != nil {
-			return err
-		}
-		if destination, err = resolveAirport(positional[1]); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("usage: vueling status <VY flight number> | <origin> <destination> [--date <date>]")
-	}
-	date, err := dateparse.ParseDate(dateValue, time.Now())
-	if err != nil {
-		return fmt.Errorf("invalid --date: %w", err)
-	}
-	reader := cli.newReader(endpoint)
-	if watch > 0 {
-		return cli.watchFlightStatus(time.Duration(watch)*time.Minute, format == "json", func(ctx context.Context) ([]vueling.FlightStatus, error) {
-			return web.FlightStatusFromPage(ctx, reader, flight, origin, destination, date)
-		})
-	}
-	statuses, err := web.FlightStatusFromPage(context.Background(), reader, flight, origin, destination, date)
+	options, err := parseFlightStatusOptions(args)
 	if err != nil {
 		return err
 	}
-	switch format {
+	reader := cli.newReader(options.endpoint)
+	if options.watch > 0 {
+		return cli.watchFlightStatus(time.Duration(options.watch)*time.Minute, options.format == "json", func(ctx context.Context) ([]vueling.FlightStatus, error) {
+			return web.FlightStatusFromPage(ctx, reader, options.flight, options.origin, options.destination, options.date)
+		})
+	}
+	statuses, err := web.FlightStatusFromPage(context.Background(), reader, options.flight, options.origin, options.destination, options.date)
+	if err != nil {
+		return err
+	}
+	switch options.format {
 	case "json":
 		return json.NewEncoder(cli.stdout).Encode(statuses)
 	case "toon":

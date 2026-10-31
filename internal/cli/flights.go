@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
-	dateparse "github.com/seifreed/vuelingcli/internal/date"
 	"github.com/seifreed/vuelingcli/internal/vueling"
 	"github.com/seifreed/vuelingcli/internal/vueling/web"
 )
@@ -20,153 +18,24 @@ func (cli *CLI) flights(args []string) error {
 		}
 		return nil
 	}
-	values := map[string]string{}
-	var positional []string
-	format := ""
-	var filter vueling.FlightFilter
-	nearby := false
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		if a == "--json" || a == "--toon" {
-			if format != "" {
-				return fmt.Errorf("--json and --toon cannot be used together")
-			}
-			format = a[2:]
-			continue
-		}
-		if a == "--nearby" {
-			nearby = true
-			continue
-		}
-		if a == "--cheapest" || a == "--direct" {
-			filter.Cheapest = filter.Cheapest || a == "--cheapest"
-			filter.Direct = filter.Direct || a == "--direct"
-			continue
-		}
-		if strings.HasPrefix(a, "--") {
-			k, v, hasValue := strings.Cut(a[2:], "=")
-			if !hasValue {
-				remaining := args[i:]
-				if len(remaining) < 2 {
-					return fmt.Errorf("--%s requires a value", k)
-				}
-				v = remaining[1]
-				i++
-			}
-			switch k {
-			case "date", "return", "adults", "children", "infants", "currency", "cdp-url", "after", "before", "return-after", "return-before", "limit":
-				values[k] = v
-			default:
-				return fmt.Errorf("unknown option --%s", k)
-			}
-			continue
-		}
-		if strings.HasPrefix(a, "-") {
-			return fmt.Errorf("unknown option %s", a)
-		}
-		positional = append(positional, a)
-	}
-	if len(positional) != 2 || values["date"] == "" {
-		return fmt.Errorf("usage: vueling flights <origin city or IATA> <destination city or IATA> --date <date> [options]")
-	}
-	origin, err := resolveAirport(positional[0])
-	if err != nil {
-		return fmt.Errorf("origin: %w", err)
-	}
-	destination, err := resolveAirport(positional[1])
-	if err != nil {
-		return fmt.Errorf("destination: %w", err)
-	}
-	parseDate := func(key string) (time.Time, error) {
-		if values[key] == "" {
-			return time.Time{}, nil
-		}
-		return dateparse.ParseDate(values[key], time.Now())
-	}
-	date, err := parseDate("date")
+	options, err := parseFlightOptions(args)
 	if err != nil {
 		return err
 	}
-	returnDate, err := parseDate("return")
+	searchURL, err := vueling.FlightSearchURL(vueling.LinkOptions{Origin: options.origin, Destination: options.destination, Date: options.date, ReturnDate: options.returnDate, Adults: options.adults, Children: options.children, Infants: options.infants, Currency: options.currency})
 	if err != nil {
 		return err
 	}
-	integer := func(key string, fallback int) (int, error) {
-		if values[key] == "" {
-			return fallback, nil
-		}
-		return strconv.Atoi(values[key])
-	}
-	adults, err := integer("adults", 1)
-	if err != nil {
-		return fmt.Errorf("invalid --adults: %w", err)
-	}
-	children, err := integer("children", 0)
-	if err != nil {
-		return fmt.Errorf("invalid --children: %w", err)
-	}
-	infants, err := integer("infants", 0)
-	if err != nil {
-		return fmt.Errorf("invalid --infants: %w", err)
-	}
-	if filter.Limit, err = integer("limit", 0); err != nil || (values["limit"] != "" && filter.Limit < 1) {
-		return fmt.Errorf("invalid --limit: must be a whole number of at least 1")
-	}
-	clock := func(key string, fallback int) (int, error) {
-		if values[key] == "" {
-			return fallback, nil
-		}
-		minutes, err := vueling.ParseClock(values[key])
-		if err != nil {
-			return 0, fmt.Errorf("invalid --%s: %w", key, err)
-		}
-		return minutes, nil
-	}
-	afterMinutes, err := clock("after", 0)
+	reader := cli.newReader(options.endpoint)
+	flights, err := web.FlightsFromPage(context.Background(), reader, searchURL, options.date.Format(time.DateOnly), options.returnDate.Format(time.DateOnly))
 	if err != nil {
 		return err
 	}
-	beforeMinutes, err := clock("before", 24*60)
-	if err != nil {
-		return err
-	}
-	if afterMinutes > beforeMinutes {
-		return fmt.Errorf("--after must not be later than --before")
-	}
-	returnAfterMinutes, err := clock("return-after", 0)
-	if err != nil {
-		return err
-	}
-	returnBeforeMinutes, err := clock("return-before", 24*60)
-	if err != nil {
-		return err
-	}
-	if returnAfterMinutes > returnBeforeMinutes {
-		return fmt.Errorf("--return-after must not be later than --return-before")
-	}
-	if (values["return-after"] != "" || values["return-before"] != "") && values["return"] == "" {
-		return fmt.Errorf("--return-after and --return-before need --return")
-	}
-	filter.After, filter.Before = values["after"], values["before"]
-	filter.ReturnAfter, filter.ReturnBefore = values["return-after"], values["return-before"]
-	currency := strings.ToUpper(values["currency"])
-	if currency == "" {
-		currency = "EUR"
-	}
-	searchURL, err := vueling.FlightSearchURL(vueling.LinkOptions{Origin: origin, Destination: destination, Date: date, ReturnDate: returnDate, Adults: adults, Children: children, Infants: infants, Currency: currency})
-	if err != nil {
-		return err
-	}
-	reader := cli.newReader(values["cdp-url"])
-	flights, err := web.FlightsFromPage(context.Background(), reader, searchURL, date.Format(time.DateOnly), returnDate.Format(time.DateOnly))
-	if err != nil {
-		return err
-	}
-	flights = vueling.FilterFlights(flights, filter)
+	flights = vueling.FilterFlights(flights, options.filter)
 	result := map[string]any{"url": searchURL, "flights": flights}
 	var outboundNearby, returnNearby *vueling.CalendarDay
-	if nearby {
-		outboundNearby, returnNearby = cli.nearbyFares(reader, origin, destination, date, returnDate)
+	if options.nearby {
+		outboundNearby, returnNearby = cli.nearbyFares(reader, options.origin, options.destination, options.date, options.returnDate)
 		if outboundNearby != nil {
 			result["nearby"] = outboundNearby
 		}
@@ -174,10 +43,10 @@ func (cli *CLI) flights(args []string) error {
 			result["returnNearby"] = returnNearby
 		}
 	}
-	if format == "json" {
+	if options.format == "json" {
 		return json.NewEncoder(cli.stdout).Encode(result)
 	}
-	if format == "toon" {
+	if options.format == "toon" {
 		return cli.writeTOON(result)
 	}
 	if _, err := fmt.Fprintf(cli.stdout, "%s\n", searchURL); err != nil {

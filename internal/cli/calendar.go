@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	dateparse "github.com/seifreed/vuelingcli/internal/date"
 	"github.com/seifreed/vuelingcli/internal/vueling"
 	"github.com/seifreed/vuelingcli/internal/vueling/web"
 )
@@ -16,111 +15,42 @@ func (cli *CLI) calendar(args []string) error {
 		_, err := fmt.Fprint(cli.stdout, "Read Vueling calendar prices or build its link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices [--month]] [--open] [--json|--toon]\n")
 		return err
 	}
-	var positional []string
-	dateValue, returnValue, format := "", "", ""
-	open, prices, month := false, false, false
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		switch {
-		case a == "--open":
-			open = true
-		case a == "--prices":
-			prices = true
-		case a == "--month":
-			month = true
-		case a == "--date":
-			remaining := args[i:]
-			if len(remaining) < 2 {
-				return fmt.Errorf("--date requires a value")
-			}
-			dateValue = remaining[1]
-			i++
-		case a == "--return":
-			remaining := args[i:]
-			if len(remaining) < 2 {
-				return fmt.Errorf("--return requires a value")
-			}
-			returnValue = remaining[1]
-			i++
-		case len(a) > 9 && a[:9] == "--return=":
-			returnValue = a[9:]
-		case len(a) > 7 && a[:7] == "--date=":
-			dateValue = a[7:]
-		case a == "--json" || a == "--toon":
-			if format != "" {
-				return fmt.Errorf("--json and --toon cannot be used together")
-			}
-			format = a[2:]
-		case len(a) > 0 && a[0] == '-':
-			return fmt.Errorf("unknown option %s", a)
-		default:
-			positional = append(positional, a)
-		}
-	}
-	if len(positional) != 2 || dateValue == "" {
-		return fmt.Errorf("usage: vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices [--month]] [--open] [--json|--toon]")
-	}
-	if month && !prices {
-		return fmt.Errorf("--month requires --prices")
-	}
-	origin, err := resolveAirport(positional[0])
-	if err != nil {
-		return fmt.Errorf("origin: %w", err)
-	}
-	destination, err := resolveAirport(positional[1])
-	if err != nil {
-		return fmt.Errorf("destination: %w", err)
-	}
-	date, err := dateparse.ParseDate(dateValue, time.Now())
+	options, err := parseCalendarOptions(args, time.Now())
 	if err != nil {
 		return err
 	}
-	var returnDate string
-	if returnValue != "" {
-		parsed, err := dateparse.ParseDate(returnValue, time.Now())
-		if err != nil {
-			return err
-		}
-		if parsed.Before(date) {
-			return fmt.Errorf("return date must be on or after departure date")
-		}
-		if parsed.Sub(date) > 330*24*time.Hour {
-			return fmt.Errorf("return date must be within 330 days of departure for calendar price lookup")
-		}
-		returnDate = parsed.Format("02/01/2006")
-	}
-	link, err := vueling.CalendarURL(origin, destination, date)
+	link, err := vueling.CalendarURL(options.origin, options.destination, options.date)
 	if err != nil {
 		return err
 	}
 	reader := cli.newReader("")
-	if month {
-		return cli.calendarMonth(reader, link, returnDate, format)
+	if options.month {
+		return cli.calendarMonth(reader, link, options.returnDate, options.format)
 	}
-	if prices {
-		price, err := web.CalendarPricesFromPage(context.Background(), reader, link, returnDate)
+	if options.prices {
+		price, err := web.CalendarPricesFromPage(context.Background(), reader, link, options.returnDate)
 		if err != nil {
 			return err
 		}
 		price["url"] = link
-		if format == "json" {
+		if options.format == "json" {
 			return json.NewEncoder(cli.stdout).Encode(price)
 		}
-		if format == "toon" {
+		if options.format == "toon" {
 			return cli.writeTOON(price)
 		}
-		_, err = fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["route"], date.Format("02/01/2006"), price["fare"])
+		_, err = fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["route"], options.date.Format("02/01/2006"), price["fare"])
 		return err
 	}
-	if open {
+	if options.open {
 		if err := openURL(link); err != nil {
 			return fmt.Errorf("open calendar link: %w", err)
 		}
 	}
-	if format == "json" {
+	if options.format == "json" {
 		return json.NewEncoder(cli.stdout).Encode(map[string]string{"url": link})
 	}
-	if format == "toon" {
+	if options.format == "toon" {
 		return cli.writeTOON(map[string]string{"url": link})
 	}
 	_, err = fmt.Fprintln(cli.stdout, link)
