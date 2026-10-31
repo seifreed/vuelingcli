@@ -39,7 +39,14 @@ func ParseDate(value string, now time.Time) (time.Time, error) {
 		if err != nil || days < 0 {
 			return time.Time{}, fmt.Errorf("invalid relative date %q (use +N)", value)
 		}
-		return today.AddDate(0, 0, days), nil
+		if today.Year() > 9999 || int64(days) > (int64(9999)-int64(today.Year())+1)*366 {
+			return time.Time{}, fmt.Errorf("relative date %q is outside the supported date range", value)
+		}
+		date := today.AddDate(0, 0, days)
+		if date.Year() > 9999 {
+			return time.Time{}, fmt.Errorf("relative date %q is outside the supported date range", value)
+		}
+		return date, nil
 	}
 	for _, layout := range []string{time.DateOnly, "02/01/2006"} {
 		if parsed, err := time.ParseInLocation(layout, value, now.Location()); err == nil {

@@ -1,6 +1,7 @@
 package date
 
 import (
+	"strconv"
 	"testing"
 	"time"
 )
@@ -19,5 +20,13 @@ func TestParseDate(t *testing.T) {
 	}
 	if _, err := ParseDate("yesterday", now); err == nil {
 		t.Fatal("invalid date was accepted")
+	}
+}
+
+func TestParseDateRejectsRelativeDateOverflow(t *testing.T) {
+	now := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
+	input := "+" + strconv.Itoa(int(^uint(0)>>1))
+	if got, err := ParseDate(input, now); err == nil {
+		t.Fatalf("ParseDate(%q) = %v, nil; want a range error", input, got)
 	}
 }
