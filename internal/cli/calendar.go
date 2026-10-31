@@ -11,7 +11,7 @@ import (
 
 func (cli *CLI) calendar(args []string) error {
 	if isHelp(args) {
-		_, err := fmt.Fprint(cli.stdout, "Read Vueling calendar prices or build its link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices [--month]] [--open] [--json|--toon]\n")
+		_, err := fmt.Fprint(cli.stdout, "Read Vueling calendar prices or build its link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--prices [--month]] [--open] [--json|--toon]\n\n--open also opens the calendar URL in the default browser when reading prices.\n")
 		return err
 	}
 	options, err := parseCalendarOptions(args, time.Now())
@@ -21,6 +21,11 @@ func (cli *CLI) calendar(args []string) error {
 	link, err := vueling.CalendarURL(options.origin, options.destination, options.date)
 	if err != nil {
 		return err
+	}
+	if options.open {
+		if err := openURL(link); err != nil {
+			return fmt.Errorf("open calendar link: %w", err)
+		}
 	}
 	if options.month {
 		return cli.calendarMonth(cli.newReader(""), link, options.returnDate, options.format)
@@ -36,11 +41,6 @@ func (cli *CLI) calendar(args []string) error {
 		}
 		_, err = fmt.Fprintf(cli.stdout, "%s %s: %s\n", price["route"], options.date.Format("02/01/2006"), price["fare"])
 		return err
-	}
-	if options.open {
-		if err := openURL(link); err != nil {
-			return fmt.Errorf("open calendar link: %w", err)
-		}
 	}
 	if options.format != "" {
 		return cli.writeStructured(map[string]string{"url": link}, options.format)
