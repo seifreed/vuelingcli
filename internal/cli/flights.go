@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/seifreed/vuelingcli/internal/search"
+	dateparse "github.com/seifreed/vuelingcli/internal/date"
 	"github.com/seifreed/vuelingcli/internal/vueling"
 	"github.com/seifreed/vuelingcli/internal/vueling/web"
 )
@@ -81,7 +81,7 @@ func (cli *CLI) flights(args []string) error {
 		if values[key] == "" {
 			return time.Time{}, nil
 		}
-		return search.ParseDate(values[key], time.Now())
+		return dateparse.ParseDate(values[key], time.Now())
 	}
 	date, err := parseDate("date")
 	if err != nil {

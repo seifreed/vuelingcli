@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/seifreed/vuelingcli/internal/search"
+	dateparse "github.com/seifreed/vuelingcli/internal/date"
 	"github.com/seifreed/vuelingcli/internal/vueling"
 	"github.com/seifreed/vuelingcli/internal/vueling/web"
 )
@@ -71,13 +71,13 @@ func (cli *CLI) calendar(args []string) error {
 	if err != nil {
 		return fmt.Errorf("destination: %w", err)
 	}
-	date, err := search.ParseDate(dateValue, time.Now())
+	date, err := dateparse.ParseDate(dateValue, time.Now())
 	if err != nil {
 		return err
 	}
 	var returnDate string
 	if returnValue != "" {
-		parsed, err := search.ParseDate(returnValue, time.Now())
+		parsed, err := dateparse.ParseDate(returnValue, time.Now())
 		if err != nil {
 			return err
 		}

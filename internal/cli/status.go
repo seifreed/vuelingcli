@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/seifreed/vuelingcli/internal/search"
+	dateparse "github.com/seifreed/vuelingcli/internal/date"
 	"github.com/seifreed/vuelingcli/internal/vueling"
 	"github.com/seifreed/vuelingcli/internal/vueling/web"
 )
@@ -80,7 +80,7 @@ func (cli *CLI) flightStatus(args []string) error {
 	default:
 		return fmt.Errorf("usage: vueling status <VY flight number> | <origin> <destination> [--date <date>]")
 	}
-	date, err := search.ParseDate(dateValue, time.Now())
+	date, err := dateparse.ParseDate(dateValue, time.Now())
 	if err != nil {
 		return fmt.Errorf("invalid --date: %w", err)
 	}

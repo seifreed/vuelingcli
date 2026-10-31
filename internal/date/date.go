@@ -1,5 +1,5 @@
-// Package search parses the travel dates the CLI accepts.
-package search
+// Package date parses travel dates accepted by the CLI.
+package date
 
 import (
 	"fmt"
