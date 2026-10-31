@@ -90,9 +90,9 @@ func TestCommandsRejectInvalidArguments(t *testing.T) {
 		{"calendar same airport", calendar, []string{"BCN", "BCN", "--date", "+30"}, "different three-letter IATA codes"},
 
 		{"status unknown option", flightStatus, []string{"VY1234", "--gate", "A1"}, "unknown option --gate"},
-		{"status short watch", flightStatus, []string{"VY1234", "--watch", "4"}, "between 5"},
-		{"status non-numeric watch", flightStatus, []string{"VY1234", "--watch=often"}, "between 5"},
-		{"status overflowing watch", flightStatus, []string{"VY1234", "--watch", "153722868"}, "between 5"},
+		{"status short watch", flightStatus, []string{"VY1234", "--watch", "4"}, "at least 5"},
+		{"status non-numeric watch", flightStatus, []string{"VY1234", "--watch=often"}, "at least 5"},
+		{"status overflowing watch", flightStatus, []string{"VY1234", "--watch", "153722868"}, "too long"},
 		{"status watch with toon", flightStatus, []string{"VY1234", "--watch", "5", "--toon"}, "cannot be used with --toon"},
 		{"status no flight", flightStatus, nil, "usage:"},
 		{"status three positionals", flightStatus, []string{"BCN", "AGP", "MAD"}, "usage:"},

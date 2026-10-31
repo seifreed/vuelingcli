@@ -46,8 +46,11 @@ func parseFlightStatusOptions(args []string) (flightStatusOptions, error) {
 			endpoint = value
 		case "watch":
 			n, err := parseIntOption(value, 0)
-			if err != nil || int64(n) < 5 || int64(n) > maxWatchMinutes {
-				return flightStatusOptions{}, fmt.Errorf("--watch must be a whole number of minutes between 5 and %d", maxWatchMinutes)
+			if err != nil || n < 5 {
+				return flightStatusOptions{}, fmt.Errorf("--watch must be a whole number of minutes, at least 5")
+			}
+			if int64(n) > maxWatchMinutes {
+				return flightStatusOptions{}, fmt.Errorf("--watch interval is too long")
 			}
 			watch = n
 		default:

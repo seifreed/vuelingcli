@@ -34,6 +34,7 @@ const renderedFlightsScript = `(() => {
   const buttons = [...document.querySelectorAll('button')];
   const offers = buttons.filter(b => /seleccionar vuelo por/i.test([b.innerText, b.getAttribute('aria-label'), b.textContent].join(' ')));
   if (offers.length === 0) {
+    if (/ESTE D[IÍ]A NO HAY VUELOS/i.test(document.body.innerText || '')) return {error: 'shows no flights for that route on the requested date'};
     const search = buttons.find(b => (b.innerText || '').trim().toUpperCase() === 'BUSCAR');
     if (search && search.dataset.vuelingcliSubmitted !== '1') {
       search.dataset.vuelingcliSubmitted = '1';
@@ -175,6 +176,10 @@ func FlightsFromPage(ctx context.Context, reader PageReader, searchURL, outbound
 	output, err := readPage(ctx, reader, searchURL, renderedFlightsScript, 45*time.Second, "Vueling did not render flight offers; the session may need attention or Vueling may be temporarily unavailable")
 	if err != nil {
 		return nil, err
+	}
+	var failure struct{ Error string }
+	if json.Unmarshal(output, &failure) == nil && failure.Error != "" {
+		return nil, fmt.Errorf("Vueling %s", failure.Error)
 	}
 	if err := json.Unmarshal(output, &cards); err != nil {
 		return nil, fmt.Errorf("could not decode rendered Vueling offers: %w", err)

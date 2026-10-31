@@ -48,6 +48,14 @@ func TestFlightsFromPagePreservesDecodeError(t *testing.T) {
 	}
 }
 
+func TestFlightsFromPageReportsNoFlightsDay(t *testing.T) {
+	reader := &testPageReader{output: []byte(`{"error":"shows no flights for that route on the requested date"}`)}
+	_, err := FlightsFromPage(context.Background(), reader, "https://example.test/search", "2027-02-03", "")
+	if err == nil || err.Error() != "Vueling shows no flights for that route on the requested date" {
+		t.Fatalf("FlightsFromPage error = %v, want the page's no-flights message", err)
+	}
+}
+
 func TestParseRenderedFlightLegs(t *testing.T) {
 	tests := []struct {
 		name    string
