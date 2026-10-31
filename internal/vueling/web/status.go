@@ -64,9 +64,10 @@ const flightStatusScript = `(() => {
     }
   }
   if (state.vuelingcliDay !== '1') {
-    const button = document.querySelector('button.vy-day_button[data-date="' + day + '"]');
+    const days = [...document.querySelectorAll('button.vy-day_button[data-date="' + day + '"]')].filter(b => b.offsetParent);
+    const button = days.find(b => b.getAttribute('aria-disabled') !== 'true') || days[0];
     if (!button) {
-      if (document.querySelector('button.vy-day_button')) return {error: 'does not offer flight status for that date'};
+      if ([...document.querySelectorAll('button.vy-day_button')].some(b => b.offsetParent)) return {error: 'does not offer flight status for that date'};
       document.getElementById('outboundDate')?.click();
       return [];
     }

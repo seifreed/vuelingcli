@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,5 +55,12 @@ func TestFlightStatusFromPagePreservesDecodeError(t *testing.T) {
 	var syntaxErr *json.SyntaxError
 	if !errors.As(err, &syntaxErr) {
 		t.Fatalf("FlightStatusFromPage error = %v, want wrapped JSON syntax error", err)
+	}
+}
+
+func TestFlightStatusScriptSkipsHiddenPaddingDays(t *testing.T) {
+	// The picker repeats next month's first days as hidden, disabled padding cells with the same data-date.
+	if !strings.Contains(flightStatusScript, `data-date="' + day + '"]')].filter(b => b.offsetParent)`) {
+		t.Fatal("flight-status script must pick the visible day button, not the hidden padding cell")
 	}
 }
