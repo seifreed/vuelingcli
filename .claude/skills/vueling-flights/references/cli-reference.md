@@ -53,7 +53,7 @@ Discount types: `0` none, `1` island/Ceuta resident, `2` large family, `3` speci
 vueling calendar <origin city-or-IATA> <destination city-or-IATA> --date <date> [--return <date>] [--prices] [--open] [--json|--toon]
 ```
 
-Builds a URL for Vueling's public price calendar. With `--prices`, reads the requested outbound date's fare and, when `--return` is supplied, the return fare from the rendered calendar in the current Chrome profile (macOS) or local DevTools session. Structured output contains `route`, `date`, `fare`, `returnRoute`, `returnDate`, `returnFare`, and `url`; return fields are empty when no return date is requested. Calendar fares are not final booking quotes.
+Builds a URL for Vueling's public price calendar. With `--prices`, reads the requested outbound date's fare and, when `--return` is supplied, the return fare from the rendered calendar in the current Chrome profile (macOS) or local DevTools session. It can switch among the return calendar's visible month tabs; if the requested month is outside those tabs, it reports that instead of guessing a fare. Calendar price lookup limits return dates to 330 days after departure to avoid confusing the same month in another year. Structured output contains `route`, `date`, `fare`, `returnRoute`, `returnDate`, `returnFare`, and `url`; return fields are empty when no return date is requested. Calendar fares are not final booking quotes.
 
 ### `vueling flights`
 

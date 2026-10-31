@@ -451,6 +451,9 @@ func calendar(args []string) error {
 		if parsed.Before(date) {
 			return fmt.Errorf("return date must be on or after departure date")
 		}
+		if parsed.Sub(date) > 330*24*time.Hour {
+			return fmt.Errorf("return date must be within 330 days of departure for calendar price lookup")
+		}
 		returnDate = parsed.Format("02/01/2006")
 	}
 	link, err := vueling.CalendarURL(origin, destination, date)

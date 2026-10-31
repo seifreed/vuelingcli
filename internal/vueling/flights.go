@@ -77,7 +77,21 @@ const renderedPriceScript = `(() => {
   const findFare = (table, value) => [...(table?.querySelectorAll('button') || [])].find(b => new RegExp('^' + Number(value) + '\\s').test((b.innerText || '').trim()) && /(?:€|EUR|£|USD|\\$)/.test(b.innerText || ''))?.innerText.match(/[0-9]+(?:[.,][0-9]{1,2})?\s*(?:EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\\$)/i)?.[0]?.trim();
   const fare = findFare(tables[0], day);
   const returnDate = params.get('vuelingcliReturnDate') || '';
-  const returnFare = returnDate ? findFare(tables[1], returnDate.slice(0, 2)) : '';
+  const monthNames = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const selectedMonths = [...document.querySelectorAll('button[aria-pressed="true"]')];
+  const expectedMonth = returnDate ? monthNames[Number(returnDate.slice(3,5)) - 1] : '';
+  const selectedReturnMonth = (selectedMonths[1]?.innerText || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (returnDate && selectedMonths.length > 1) {
+    if (!selectedReturnMonth.startsWith(expectedMonth)) {
+      const matches = [...document.querySelectorAll('button')].filter(b => (b.innerText || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().startsWith(expectedMonth));
+      if (matches.length > 1) matches[1].click();
+      else return {error: 'requested return month is not in the visible month tabs'};
+      return [];
+    }
+  }
+  let returnFare = '';
+  if (returnDate && selectedReturnMonth.startsWith(expectedMonth)) returnFare = findFare(tables[1], returnDate.slice(0, 2));
+  if (returnDate && !selectedReturnMonth.startsWith(expectedMonth)) return [];
   const route = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^IDA:/i.test(t));
   const returnRoute = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^VUELTA:/i.test(t));
   return fare && route && (!returnDate || returnFare) ? {route, date: params.get('dateComplete'), fare, returnRoute, returnDate, returnFare} : [];
@@ -106,6 +120,9 @@ func CalendarPricesFromBrowser(ctx context.Context, endpoint, calendarURL, retur
 		if err := json.Unmarshal(output, &price); err != nil || len(price) == 0 {
 			return nil, fmt.Errorf("Vueling did not render the requested calendar price")
 		}
+		if message := price["error"]; message != "" {
+			return nil, fmt.Errorf("Vueling %s; use `calendar --open` to inspect return months outside the current view", message)
+		}
 		return price, nil
 	}
 	if endpoint == "" {
@@ -127,6 +144,9 @@ func CalendarPricesFromBrowser(ctx context.Context, endpoint, calendarURL, retur
 	}
 	if len(price) == 0 {
 		return nil, fmt.Errorf("Vueling did not render the requested calendar price")
+	}
+	if message := price["error"]; message != "" {
+		return nil, fmt.Errorf("Vueling %s; use `calendar --open` to inspect return months outside the current view", message)
 	}
 	return price, nil
 }
