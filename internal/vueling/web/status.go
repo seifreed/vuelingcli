@@ -121,13 +121,17 @@ func FlightStatusFromPage(ctx context.Context, reader PageReader, flight, origin
 		return nil, fmt.Errorf("Vueling did not render any flight status cards")
 	}
 	statuses := make([]vueling.FlightStatus, 0, len(cards))
-	for _, card := range cards {
-		statuses = append(statuses, parseStatusCard(card, date))
+	for i, card := range cards {
+		status, err := parseStatusCard(card, date)
+		if err != nil {
+			return nil, fmt.Errorf("flight status card %d: %w", i+1, err)
+		}
+		statuses = append(statuses, status)
 	}
 	return statuses, nil
 }
 
-func parseStatusCard(lines []string, date time.Time) vueling.FlightStatus {
+func parseStatusCard(lines []string, date time.Time) (vueling.FlightStatus, error) {
 	status := vueling.FlightStatus{Date: date.Format("2006-01-02"), Details: strings.Join(lines, " ")}
 	if len(lines) > 0 {
 		status.Status = lines[0]
@@ -148,5 +152,8 @@ func parseStatusCard(lines []string, date time.Time) vueling.FlightStatus {
 	if len(times) > 0 {
 		status.Departure, status.Arrival = times[0], times[len(times)-1]
 	}
-	return status
+	if status.Flight == "" || status.Status == "" {
+		return vueling.FlightStatus{}, fmt.Errorf("could not parse a rendered Vueling flight status card")
+	}
+	return status, nil
 }
