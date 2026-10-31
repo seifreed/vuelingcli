@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/seifreed/vuelingcli/internal/vueling/api"
 	"github.com/seifreed/vuelingcli/internal/vueling/web"
 )
 
@@ -17,11 +18,18 @@ type CLI struct {
 	stdout    io.Writer
 	stderr    io.Writer
 	newReader PageReaderFactory
+	api       *api.Client
 }
 
 // New creates a CLI configured with its version, streams, and page-reader factory.
 func New(version string, stdout, stderr io.Writer, newReader PageReaderFactory) *CLI {
 	return &CLI{version: version, stdout: stdout, stderr: stderr, newReader: newReader}
+}
+
+// WithAPI sets the HTTP client used by commands that call Vueling's JSON APIs instead of Chrome.
+func (cli *CLI) WithAPI(client *api.Client) *CLI {
+	cli.api = client
+	return cli
 }
 
 // Run executes one command and returns its process exit code.
