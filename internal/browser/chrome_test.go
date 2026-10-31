@@ -3,6 +3,7 @@ package browser
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -62,5 +63,27 @@ func TestWaitForPageResultClearsTransientEvaluationError(t *testing.T) {
 	})
 	if !errors.Is(err, context.DeadlineExceeded) || errors.Is(err, evaluationErr) {
 		t.Fatalf("waitForPageResult error = %v, want only timeout after successful polls", err)
+	}
+}
+
+func TestAppleEventsFailurePreservesCauses(t *testing.T) {
+	cause := errors.New("osascript exited")
+	for _, tc := range []struct {
+		name   string
+		output string
+		want   string
+	}{
+		{"permission", "VUELING_JS_DISABLED", "blocks JavaScript"},
+		{"no window", "VUELING_NO_CHROME_WINDOW", "no open window"},
+		{"no offers", "VUELING_NO_OFFERS", "did not render results"},
+		{"script", "VUELING_SCRIPT_ERROR: TypeError: invalid selector", "TypeError: invalid selector"},
+		{"unknown", "osascript: unexpected failure", "unexpected failure"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := appleEventsFailure([]byte(tc.output), cause)
+			if !errors.Is(err, cause) || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("appleEventsFailure error = %v, want %q and osascript cause", err, tc.want)
+			}
+		})
 	}
 }
