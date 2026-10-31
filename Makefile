@@ -1,4 +1,6 @@
-.PHONY: check fmt vet test build
+.PHONY: check fmt vet test build vuln
+
+GOVULNCHECK_VERSION ?= v1.9.0
 
 check: fmt vet test build
 
@@ -13,3 +15,6 @@ test:
 
 build:
 	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; go build -o "$$tmp/vueling" ./cmd/vueling
+
+vuln:
+	go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
