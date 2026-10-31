@@ -12,6 +12,7 @@ All date options accept:
 - Spanish weekdays: `domingo`, `lunes`, `martes`, `miércoles`/`miercoles`, `jueves`, `viernes`, `sábado`/`sabado`
 
 A weekday matching today means the following week.
+Past calendar dates are rejected.
 
 ## Commands
 

@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -33,14 +34,17 @@ func ParseDate(value string, now time.Time) (time.Time, error) {
 		return today.AddDate(0, 0, days), nil
 	}
 	if strings.HasPrefix(value, "+") {
-		var days int
-		if _, err := fmt.Sscanf(value, "+%d", &days); err != nil || days < 0 {
+		days, err := strconv.Atoi(value[1:])
+		if err != nil || days < 0 {
 			return time.Time{}, fmt.Errorf("invalid relative date %q (use +N)", value)
 		}
 		return today.AddDate(0, 0, days), nil
 	}
 	for _, layout := range []string{time.DateOnly, "02/01/2006"} {
 		if parsed, err := time.ParseInLocation(layout, value, now.Location()); err == nil {
+			if parsed.Before(today) {
+				return time.Time{}, fmt.Errorf("date must be today or later")
+			}
 			return parsed, nil
 		}
 	}
