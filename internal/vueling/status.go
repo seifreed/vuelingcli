@@ -106,10 +106,10 @@ var (
 func FlightStatusFromBrowser(ctx context.Context, endpoint, flight, origin, destination string, date time.Time) ([]FlightStatus, error) {
 	query := url.Values{"vuelingcliDay": {fmt.Sprintf("%d-%d", date.Day(), int(date.Month())-1)}}
 	switch {
-	case flight != "" && validFlightNumber(flight):
+	case statusFlightRe.MatchString(flight):
 		query.Set("vuelingcliFlight", flight)
 	case flight != "":
-		return nil, fmt.Errorf("flight must be VY followed by three or four digits")
+		return nil, fmt.Errorf("flight must be VY followed by its number, such as VY1158 or VY392D")
 	case validIATACode(origin) && validIATACode(destination) && origin != destination:
 		query.Set("vuelingcliFrom", origin)
 		query.Set("vuelingcliTo", destination)
