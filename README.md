@@ -42,7 +42,7 @@ $ vueling calendar BCN MLA --date 12/11/2026 --return 03/12/2026 --prices --json
 | **Filtros y orden** | `--cheapest`, `--direct`, `--after`, `--before` y `--limit`, aplicados a cada sentido por separado |
 | **Calendario de precios** | `calendar --prices` lee la tarifa del día de ida y de vuelta; `--month` lista el mes entero y marca el día más barato |
 | **Enlaces oficiales** | `search`/`link` generan la URL de selección de vuelos, con pasajeros, descuentos, moneda y vuelo concreto |
-| **Estado de vuelos** | `status VY1158` lee el estado público del vuelo (en hora, retrasado...) con salida y llegada |
+| **Estado de vuelos** | `status VY1158` o `status BCN PMI` leen el estado público de un vuelo o de todos los de una ruta (en hora, en vuelo, aterrizado...) |
 | **Catálogo de aeropuertos** | `airports` busca en una copia local por ciudad o código IATA, sin peticiones de red |
 | **Fechas flexibles** | `YYYY-MM-DD`, `DD/MM/YYYY`, `today`, `tomorrow`, `+N` o un día de la semana en inglés o español |
 | **Salida para agentes** | `--json` y `--toon`; datos a stdout, errores de uso a stderr con código de salida `2` |
@@ -93,6 +93,7 @@ vueling search Barcelona "Palma de Mallorca" --date friday --adults 2 --open
 
 # Códigos de aeropuerto
 vueling status VY1158 --date today
+vueling status BCN PMI
 vueling airports malta
 ```
 

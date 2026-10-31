@@ -30,23 +30,50 @@ type FlightStatus struct {
 const flightStatusScript = `(() => {
   const params = new URL(location.href).searchParams;
   const flight = (params.get('vuelingcliFlight') || '').toUpperCase();
+  const route = [['originInput', params.get('vuelingcliFrom') || ''], ['destinationInput', params.get('vuelingcliTo') || '']];
   const day = params.get('vuelingcliDay') || '';
   const state = document.body.dataset;
-  const cards = [...document.querySelectorAll('.flight-cards__item')].map(c => (c.innerText || '').split('\n').map(s => s.trim()).filter(Boolean)).filter(c => c.includes(flight));
-  if (state.vuelingcliSubmitted === '1') {
-    if (!cards.length && document.querySelector('vy-spa-wrapper-flight-status .vy-alert-message--danger')) return {error: 'found no status for that flight number and date'};
-    return cards;
-  }
-  const input = document.getElementById('flightNumberInput');
-  if (!input) {
-    document.getElementById('TabSearcherFlightStatusByFlightNumberlabel')?.click();
-    return [];
-  }
-  if (input.value !== flight) {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, flight);
+  const setValue = (input, value) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
     input.dispatchEvent(new Event('input', {bubbles: true}));
     input.dispatchEvent(new Event('change', {bubbles: true}));
-    return [];
+  };
+  const cards = [...document.querySelectorAll('.flight-cards__item')].map(c => (c.innerText || '').split('\n').map(s => s.trim()).filter(Boolean)).filter(c => !flight || c.includes(flight));
+  if (state.vuelingcliSubmitted === '1') {
+    if (!cards.length && document.querySelector('vy-spa-wrapper-flight-status .vy-alert-message--danger')) return {error: 'found no flight status for that search and date'};
+    return cards;
+  }
+  if (flight) {
+    const input = document.getElementById('flightNumberInput');
+    if (!input) {
+      document.getElementById('TabSearcherFlightStatusByFlightNumberlabel')?.click();
+      return [];
+    }
+    if (input.value !== flight) {
+      setValue(input, flight);
+      return [];
+    }
+  } else {
+    for (const [id, code] of route) {
+      if (state[id] === '1') continue;
+      const input = document.getElementById(id);
+      if (!input) {
+        document.getElementById('TabSearcherFlightStatusByStationlabel')?.click();
+        return [];
+      }
+      const option = [...document.querySelectorAll('button.vy-list-dropdown_item')].find(b => b.offsetParent && new RegExp('\\b' + code + '$').test((b.innerText || '').trim()));
+      if (option && input.value === code) {
+        option.click();
+        state[id] = '1';
+      } else if (Number(state[id + 'Polls'] || 0) % 6 === 0) {
+        input.click();
+        input.focus();
+        setValue(input, '');
+        setValue(input, code);
+      }
+      state[id + 'Polls'] = Number(state[id + 'Polls'] || 0) + 1;
+      return [];
+    }
   }
   if (state.vuelingcliDay !== '1') {
     const button = document.querySelector('button.vy-day_button[data-date="' + day + '"]');
@@ -71,17 +98,26 @@ const flightStatusScript = `(() => {
 var (
 	clockPattern   = regexp.MustCompile(`^\d{1,2}:\d{2}$`)
 	originPattern  = regexp.MustCompile(`^([A-Z]{3})\p{Lu}\p{Ll}`)
-	destinPattern  = regexp.MustCompile(`\p{Ll}([A-Z]{3})$`)
-	statusFlightRe = regexp.MustCompile(`^VY\d{3,4}$`)
+	destinPattern  = regexp.MustCompile(`[\p{Ll})]([A-Z]{3})$`)
+	statusFlightRe = regexp.MustCompile(`^VY\d{2,4}[A-Z]?$`)
 )
 
-// FlightStatusFromBrowser reads the public flight-status card for one VY flight and day.
-func FlightStatusFromBrowser(ctx context.Context, endpoint, flight string, date time.Time) ([]FlightStatus, error) {
-	if !validFlightNumber(flight) {
+// FlightStatusFromBrowser reads public flight-status cards for one VY flight, or for a route when flight is empty.
+func FlightStatusFromBrowser(ctx context.Context, endpoint, flight, origin, destination string, date time.Time) ([]FlightStatus, error) {
+	query := url.Values{"vuelingcliDay": {fmt.Sprintf("%d-%d", date.Day(), int(date.Month())-1)}}
+	switch {
+	case flight != "" && validFlightNumber(flight):
+		query.Set("vuelingcliFlight", flight)
+	case flight != "":
 		return nil, fmt.Errorf("flight must be VY followed by three or four digits")
+	case validIATACode(origin) && validIATACode(destination) && origin != destination:
+		query.Set("vuelingcliFrom", origin)
+		query.Set("vuelingcliTo", destination)
+	default:
+		return nil, fmt.Errorf("route needs two different three-letter IATA codes")
 	}
 	u, _ := url.Parse(statusPage)
-	u.RawQuery = url.Values{"vuelingcliFlight": {flight}, "vuelingcliDay": {fmt.Sprintf("%d-%d", date.Day(), int(date.Month())-1)}}.Encode()
+	u.RawQuery = query.Encode()
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 	var output []byte

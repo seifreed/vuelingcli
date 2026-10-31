@@ -215,7 +215,7 @@ func flights(args []string) error {
 
 func flightStatus(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Read a Vueling flight's live status from your Chrome session\n\nUsage:\n  vueling status <VY flight number> [--date <date>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n\nThe date defaults to today. This command fills Vueling's public flight-status form and reads the rendered card.\n")
+		fmt.Print("Read a Vueling flight's live status from your Chrome session\n\nUsage:\n  vueling status <VY flight number> [--date <date>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n  vueling status <origin city or IATA> <destination city or IATA> [--date <date>] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n\nThe date defaults to today. This command fills Vueling's public flight-status form and reads the rendered cards.\n")
 		return nil
 	}
 	var positional []string
@@ -250,14 +250,26 @@ func flightStatus(args []string) error {
 			return fmt.Errorf("unknown option --%s", k)
 		}
 	}
-	if len(positional) != 1 {
-		return fmt.Errorf("usage: vueling status <VY flight number> [--date <date>]")
+	flight, origin, destination := "", "", ""
+	switch len(positional) {
+	case 1:
+		flight = strings.ToUpper(positional[0])
+	case 2:
+		var err error
+		if origin, err = resolveAirport(positional[0]); err != nil {
+			return err
+		}
+		if destination, err = resolveAirport(positional[1]); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("usage: vueling status <VY flight number> | <origin> <destination> [--date <date>]")
 	}
 	date, err := search.ParseDate(dateValue, time.Now())
 	if err != nil {
 		return fmt.Errorf("invalid --date: %w", err)
 	}
-	statuses, err := vueling.FlightStatusFromBrowser(context.Background(), endpoint, strings.ToUpper(positional[0]), date)
+	statuses, err := vueling.FlightStatusFromBrowser(context.Background(), endpoint, flight, origin, destination, date)
 	if err != nil {
 		return err
 	}
