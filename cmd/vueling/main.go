@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -20,7 +21,7 @@ const version = "0.1.0"
 
 func main() {
 	if len(os.Args) == 1 || os.Args[1] == "help" || os.Args[1] == "--help" || os.Args[1] == "-h" {
-		fmt.Print("vueling — unofficial read-only Vueling CLI\n\nUsage:\n  vueling <command> [options]\n\nCommands:\n  search      Build an official flight-search link\n  calendar    Build a Vueling price-calendar link\n  link        Build a flight-selection link\n  airports    Search Vueling airport codes\n  help        Show this help\n  version     Show version\n\nRun 'vueling <command> --help' for command options.\n")
+		fmt.Print("vueling — unofficial read-only Vueling CLI\n\nUsage:\n  vueling <command> [options]\n\nCommands:\n  flights     Read live flight offers from Chrome\n  search      Build an official flight-search link\n  calendar    Build a Vueling price-calendar link\n  link        Build a flight-selection link\n  airports    Search Vueling airport codes\n  help        Show this help\n  version     Show version\n\nRun 'vueling <command> --help' for command options.\n")
 		return
 	}
 	switch os.Args[1] {
@@ -52,6 +53,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "calendar: %v\n", err)
 			os.Exit(2)
 		}
+	case "flights":
+		if err := flights(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "flights: %v\n", err)
+			os.Exit(2)
+		}
 	case "link":
 		if err := flightLink(os.Args[2:]); err != nil {
 			fmt.Fprintf(os.Stderr, "link: %v\n", err)
@@ -61,6 +67,113 @@ func main() {
 		fmt.Fprintf(os.Stderr, "vueling: unknown command %q (run 'vueling help')\n", os.Args[1])
 		os.Exit(2)
 	}
+}
+
+func flights(args []string) error {
+	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
+		fmt.Print("Read live flight offers from your Chrome session\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--cdp-url http://127.0.0.1:9222] [--json|--toon]\n\nChrome remote debugging must be enabled for the profile holding your Vueling session. This command reads rendered offers only; it never selects a fare.\n")
+		return nil
+	}
+	values := map[string]string{"cdp-url": "http://127.0.0.1:9222"}
+	var positional []string
+	format := ""
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--json" || a == "--toon" {
+			if format != "" {
+				return fmt.Errorf("--json and --toon cannot be used together")
+			}
+			format = a[2:]
+			continue
+		}
+		if strings.HasPrefix(a, "--") {
+			k, v, hasValue := strings.Cut(a[2:], "=")
+			if !hasValue {
+				i++
+				if i == len(args) {
+					return fmt.Errorf("--%s requires a value", k)
+				}
+				v = args[i]
+			}
+			switch k {
+			case "date", "return", "adults", "children", "infants", "currency", "cdp-url":
+				values[k] = v
+			default:
+				return fmt.Errorf("unknown option --%s", k)
+			}
+			continue
+		}
+		if strings.HasPrefix(a, "-") {
+			return fmt.Errorf("unknown option %s", a)
+		}
+		positional = append(positional, a)
+	}
+	if len(positional) != 2 || values["date"] == "" {
+		return fmt.Errorf("usage: vueling flights <origin city or IATA> <destination city or IATA> --date <date> [options]")
+	}
+	origin, err := resolveAirport(positional[0])
+	if err != nil {
+		return fmt.Errorf("origin: %w", err)
+	}
+	destination, err := resolveAirport(positional[1])
+	if err != nil {
+		return fmt.Errorf("destination: %w", err)
+	}
+	parseDate := func(key string) (time.Time, error) {
+		if values[key] == "" {
+			return time.Time{}, nil
+		}
+		return search.ParseDate(values[key], time.Now())
+	}
+	date, err := parseDate("date")
+	if err != nil {
+		return err
+	}
+	returnDate, err := parseDate("return")
+	if err != nil {
+		return err
+	}
+	integer := func(key string, fallback int) (int, error) {
+		if values[key] == "" {
+			return fallback, nil
+		}
+		return strconv.Atoi(values[key])
+	}
+	adults, err := integer("adults", 1)
+	if err != nil {
+		return fmt.Errorf("invalid --adults: %w", err)
+	}
+	children, err := integer("children", 0)
+	if err != nil {
+		return fmt.Errorf("invalid --children: %w", err)
+	}
+	infants, err := integer("infants", 0)
+	if err != nil {
+		return fmt.Errorf("invalid --infants: %w", err)
+	}
+	currency := strings.ToUpper(values["currency"])
+	if currency == "" {
+		currency = "EUR"
+	}
+	searchURL, err := vueling.FlightSearchURL(vueling.LinkOptions{Origin: origin, Destination: destination, Date: date, ReturnDate: returnDate, Adults: adults, Children: children, Infants: infants, Currency: currency})
+	if err != nil {
+		return err
+	}
+	flights, err := vueling.FlightsFromBrowser(context.Background(), values["cdp-url"], searchURL, date.Format(time.DateOnly), returnDate.Format(time.DateOnly))
+	if err != nil {
+		return err
+	}
+	if format == "json" {
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"url": searchURL, "flights": flights})
+	}
+	if format == "toon" {
+		return writeTOON(map[string]any{"url": searchURL, "flights": flights})
+	}
+	fmt.Printf("%s\n", searchURL)
+	for _, flight := range flights {
+		fmt.Printf("%-8s %s %s %s–%s %s %s | %s\n", strings.ToUpper(flight.Direction), flight.Date, flight.Flight, flight.Departure, flight.Arrival, flight.Fare, flight.Currency, flight.Itinerary)
+	}
+	return nil
 }
 
 func showVersion(args []string) error {

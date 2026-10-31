@@ -1,0 +1,173 @@
+package vueling
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/chromedp/chromedp"
+)
+
+type Flight struct {
+	Direction string `json:"direction"`
+	Date      string `json:"date"`
+	Flight    string `json:"flight"`
+	Departure string `json:"departure"`
+	Arrival   string `json:"arrival"`
+	Fare      string `json:"fare"`
+	Currency  string `json:"currency"`
+	Itinerary string `json:"itinerary"`
+}
+
+type renderedFlight struct {
+	Direction string `json:"direction"`
+	Label     string `json:"label"`
+	Details   string `json:"details"`
+}
+
+var (
+	flightNumberPattern = regexp.MustCompile(`\bVY\d{3,4}\b`)
+	timePattern         = regexp.MustCompile(`\b(?:[01]?\d|2[0-3]):[0-5]\d\b`)
+	farePattern         = regexp.MustCompile(`(?i)([0-9]+(?:[.,][0-9]{1,2})?)\s*(EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\$)`)
+)
+
+const renderedFlightsScript = `(() => {
+  const headings = [...document.querySelectorAll('h1,h2,h3,h4,[role="heading"]')]
+    .filter(e => /^(IDA|VUELTA)\s*:/i.test((e.innerText || '').trim()));
+  return [...document.querySelectorAll('button')]
+    .filter(b => /seleccionar vuelo por/i.test([b.innerText, b.getAttribute('aria-label'), b.textContent].join(' ')))
+    .map(b => {
+      const heading = headings.filter(h => h.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).pop();
+      const label = [b.getAttribute('aria-label'), b.innerText, b.textContent].filter(Boolean).join(' ').trim();
+      let card = b;
+      for (let i = 0; i < 8 && card.parentElement; i++) {
+        card = card.parentElement;
+        const text = card.innerText || '';
+        const offers = [...card.querySelectorAll('button')].filter(e => /seleccionar vuelo por/i.test([e.innerText, e.getAttribute('aria-label'), e.textContent].join(' ')));
+        if (offers.length === 1 && /VY\d{3,4}/.test(text) && /Vueling/i.test(text) && text.split('\n').length >= 4) break;
+      }
+      return {
+        direction: heading ? (/^VUELTA/i.test(heading.innerText.trim()) ? 'return' : 'outbound') : '',
+        label,
+        details: (card.innerText || '').trim()
+      };
+    });
+})()`
+
+// FlightsFromBrowser reads only visible result-card text from a local Chrome
+// DevTools session. It never reads cookies, storage, request headers, or tokens.
+func FlightsFromBrowser(ctx context.Context, endpoint, searchURL, outboundDate, returnDate string) ([]Flight, error) {
+	if err := validateDevToolsEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+	if err := checkDevToolsEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+	if _, err := url.ParseRequestURI(searchURL); err != nil {
+		return nil, fmt.Errorf("invalid Vueling search URL: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	allocator, stopAllocator := chromedp.NewRemoteAllocator(ctx, endpoint)
+	defer stopAllocator()
+	tab, stopTab := chromedp.NewContext(allocator)
+	defer stopTab()
+
+	if err := chromedp.Run(tab, chromedp.Navigate(searchURL)); err != nil {
+		return nil, fmt.Errorf("open Vueling in Chrome: %w", err)
+	}
+	var cards []renderedFlight
+	deadline := time.Now().Add(75 * time.Second)
+	for time.Now().Before(deadline) {
+		if err := chromedp.Run(tab, chromedp.Evaluate(renderedFlightsScript, &cards)); err != nil {
+			return nil, fmt.Errorf("read rendered Vueling results: %w", err)
+		}
+		if len(cards) > 0 {
+			break
+		}
+		select {
+		case <-tab.Done():
+			return nil, fmt.Errorf("Chrome closed before Vueling results loaded")
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+	if len(cards) == 0 {
+		return nil, fmt.Errorf("Vueling did not render flight offers; check that the browser session is active and no CAPTCHA is blocking the search")
+	}
+
+	flights := make([]Flight, 0, len(cards))
+	for _, card := range cards {
+		flight, err := parseRenderedFlight(card, outboundDate, returnDate)
+		if err != nil {
+			return nil, err
+		}
+		flights = append(flights, flight)
+	}
+	return flights, nil
+}
+
+func checkDevToolsEndpoint(endpoint string) error {
+	u, _ := url.Parse(endpoint)
+	u.Path, u.RawQuery = "/json/version", ""
+	client := http.Client{Timeout: 2 * time.Second}
+	response, err := client.Get(u.String())
+	if err != nil {
+		return fmt.Errorf("Chrome DevTools is unavailable at %s; enable local remote debugging for the Chrome profile holding Vueling, then retry (%w)", endpoint, err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("Chrome DevTools returned HTTP %d at %s", response.StatusCode, endpoint)
+	}
+	return nil
+}
+
+func validateDevToolsEndpoint(endpoint string) error {
+	u, err := url.Parse(endpoint)
+	if err != nil || u.Scheme != "http" || u.Hostname() == "" || u.User != nil {
+		return fmt.Errorf("Chrome DevTools endpoint must be a local http URL, such as http://127.0.0.1:9222")
+	}
+	if u.Hostname() != "localhost" && !net.ParseIP(u.Hostname()).IsLoopback() {
+		return fmt.Errorf("Chrome DevTools endpoint must use localhost or a loopback IP")
+	}
+	return nil
+}
+
+func parseRenderedFlight(card renderedFlight, outboundDate, returnDate string) (Flight, error) {
+	flightNumber := flightNumberPattern.FindString(card.Label + "\n" + card.Details)
+	times := timePattern.FindAllString(card.Label+"\n"+card.Details, -1)
+	fare := farePattern.FindStringSubmatch(card.Label)
+	if flightNumber == "" || len(times) < 2 || len(fare) != 3 {
+		return Flight{}, fmt.Errorf("could not parse a rendered Vueling flight card")
+	}
+	direction, date := card.Direction, outboundDate
+	if direction == "return" {
+		date = returnDate
+	} else if direction == "" {
+		return Flight{}, fmt.Errorf("could not determine whether a rendered flight is outbound or return")
+	}
+	currency := strings.ToUpper(fare[2])
+	switch currency {
+	case "€":
+		currency = "EUR"
+	case "£":
+		currency = "GBP"
+	case "$":
+		currency = "USD"
+	}
+	return Flight{
+		Direction: direction,
+		Date:      date,
+		Flight:    flightNumber,
+		Departure: times[0],
+		Arrival:   times[1],
+		Fare:      strings.ReplaceAll(fare[1], ",", "."),
+		Currency:  currency,
+		Itinerary: strings.Join(strings.Fields(card.Details), " "),
+	}, nil
+}

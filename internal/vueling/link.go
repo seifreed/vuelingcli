@@ -89,6 +89,26 @@ func FlightURL(o LinkOptions) (string, error) {
 	return "https://tickets.vueling.com/booking?" + q.Encode(), nil
 }
 
+// FlightSearchURL builds the route used by Vueling's rendered flight results.
+func FlightSearchURL(o LinkOptions) (string, error) {
+	link, err := FlightURL(o)
+	if err != nil {
+		return "", err
+	}
+	u, err := url.Parse(link)
+	if err != nil {
+		return "", err
+	}
+	u.Path = "/booking/flightSearch"
+	q := u.Query()
+	q.Set("chd", fmt.Sprint(o.Children))
+	q.Set("inf", fmt.Sprint(o.Infants))
+	q.Set("dt", fmt.Sprint(o.Discount))
+	q.Set("b", "1")
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
+
 func validIATACode(s string) bool {
 	if len(s) != 3 {
 		return false

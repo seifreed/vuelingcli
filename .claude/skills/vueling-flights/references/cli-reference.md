@@ -1,6 +1,6 @@
 # Vueling CLI reference
 
-The CLI is read-only. `search` and `link` construct the same official flight-selection URL; `calendar` constructs the public price-calendar URL. None of these commands fetch fares or availability. Use `--open` to view the generated URL in the system's default browser.
+The CLI is read-only. `flights` reads current offers from Vueling's rendered page through a local Chrome DevTools session. `search` and `link` construct the official flight-selection URL; `calendar` constructs the public price-calendar URL.
 
 ## Date syntax
 
@@ -55,6 +55,16 @@ vueling calendar <origin city-or-IATA> <destination city-or-IATA> --date <date> 
 
 Builds a URL for Vueling's public price calendar. It accepts IATA codes or unambiguous city names from the bundled catalogue (quote multi-word names), plus departure date, browser-open, and output-format options; it does not query prices itself.
 
+### `vueling flights`
+
+```text
+vueling flights <origin city-or-IATA> <destination city-or-IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency CODE] [--cdp-url http://127.0.0.1:9222] [--json|--toon]
+```
+
+Opens the search in a new tab in the Chrome profile exposed on the local DevTools endpoint, waits for Vueling to render offers, and reads the visible flight cards. Remote debugging must be enabled for the Chrome profile containing the Vueling session; keep the endpoint bound to loopback because it grants control over the browser. `--cdp-url` accepts only localhost or a loopback IP. Chrome 136+ ignores the command-line port switch for its default data directory, so do not copy the user's profile as a workaround; use Chrome's explicit remote-debugging controls when available or a dedicated profile the user signs into. See [Chrome's remote-debugging changes](https://developer.chrome.com/blog/remote-debugging-port). The command reads no cookies, storage, tokens, or network requests and does not select any fare. A CAPTCHA or missing/expired Vueling session prevents results from loading.
+
+The JSON/TOON object contains `url` and `flights`; each flight has `direction`, `date`, `flight`, `departure`, `arrival`, `fare`, `currency`, and the visible `itinerary` text. Currency defaults to `EUR` and uses the same supported values as `search`/`link`.
+
 ### `vueling airports`
 
 ```text
@@ -65,11 +75,11 @@ Searches a local snapshot based on [Vueling's airport-help pages](https://help.v
 
 ### `vueling version` and help
 
-`vueling version` (also `--version` or `-v`) prints the CLI version. Add `--json` or `--toon` for structured output. `vueling help`, `--help`, or `-h` prints command names. Use `vueling version --help`, `vueling search --help`, `vueling link --help`, `vueling calendar --help`, or `vueling airports --help` for command usage.
+`vueling version` (also `--version` or `-v`) prints the CLI version. Add `--json` or `--toon` for structured output. `vueling help`, `--help`, or `-h` prints command names. Use `vueling version --help`, `vueling flights --help`, `vueling search --help`, `vueling link --help`, `vueling calendar --help`, or `vueling airports --help` for command usage.
 
 ## Structured output
 
-`search`, `link`, and `calendar` return a JSON object with one `url` field; `version` returns a `version` field. Both use the same shape in TOON format:
+`search`, `link`, and `calendar` return a JSON object with one `url` field; `flights` returns `url` and `flights`; `version` returns a `version` field. Both use the same shape in TOON format:
 
 ```json
 {"url":"https://tickets.vueling.com/booking?..."}
@@ -77,6 +87,4 @@ Searches a local snapshot based on [Vueling's airport-help pages](https://help.v
 
 `airports` returns an array of `{ "code", "city" }` objects; no matches is an empty array. Human-readable text goes to stdout and usage errors go to stderr. Invalid arguments exit with code `2`.
 
-## Not implemented
-
-Live fares, availability, result ranking, and filters such as departure time or direct-only are not implemented by this CLI. As of 2026-10-31, Vueling's former Flight Calendar deeplink reference URL returns 404; no accessible public contract for requesting its price responses has been found, and direct requests from the CLI returned HTTP 403.
+`flights` returns offers in the order displayed by Vueling. Ranking and filters such as departure time or direct-only are not implemented.
