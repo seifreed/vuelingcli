@@ -3,14 +3,12 @@ package vueling
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
-	"runtime"
 	"strings"
 	"time"
-
-	"github.com/chromedp/chromedp"
 )
 
 const statusPage = "https://www.vueling.com/es/servicios-vueling/informacion-de-vuelos/estado-de-vuelos"
@@ -103,8 +101,8 @@ var (
 	statusFlightRe = regexp.MustCompile(`^VY\d{2,4}[A-Z]?$`)
 )
 
-// FlightStatusFromBrowser reads public flight-status cards for one VY flight, or for a route when flight is empty.
-func FlightStatusFromBrowser(ctx context.Context, endpoint, flight, origin, destination string, date time.Time) ([]FlightStatus, error) {
+// FlightStatusFromPage reads public flight-status cards for one VY flight, or for a route when flight is empty.
+func FlightStatusFromPage(ctx context.Context, reader PageReader, flight, origin, destination string, date time.Time) ([]FlightStatus, error) {
 	query := url.Values{"vuelingcliDay": {fmt.Sprintf("%d-%d", date.Day(), int(date.Month())-1)}}
 	switch {
 	case statusFlightRe.MatchString(flight):
@@ -121,14 +119,11 @@ func FlightStatusFromBrowser(ctx context.Context, endpoint, flight, origin, dest
 	u.RawQuery = query.Encode()
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
-	var output []byte
-	var err error
-	if endpoint == "" && runtime.GOOS == "darwin" {
-		output, err = readPageWithAppleEvents(ctx, u.String(), flightStatusScript)
-	} else {
-		output, err = readPageWithDevTools(ctx, endpoint, u.String(), flightStatusScript)
-	}
+	output, err := reader.ReadPage(ctx, u.String(), flightStatusScript)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("Vueling did not render flight status before the timeout: %w", err)
+		}
 		return nil, err
 	}
 	var failure struct{ Error string }
@@ -196,34 +191,4 @@ func AllFinal(statuses []FlightStatus) bool {
 		}
 	}
 	return len(statuses) > 0
-}
-
-func readPageWithDevTools(ctx context.Context, endpoint, pageURL, pageScript string) ([]byte, error) {
-	if endpoint == "" {
-		endpoint = "http://127.0.0.1:9222"
-	}
-	if err := validateDevToolsEndpoint(endpoint); err != nil {
-		return nil, err
-	}
-	if err := checkDevToolsEndpoint(endpoint); err != nil {
-		return nil, err
-	}
-	allocator, stopAllocator := chromedp.NewRemoteAllocator(ctx, endpoint)
-	defer stopAllocator()
-	tab, stopTab := chromedp.NewContext(allocator)
-	defer stopTab()
-	if err := chromedp.Run(tab, chromedp.Navigate(pageURL)); err != nil {
-		return nil, fmt.Errorf("open Vueling in Chrome: %w", err)
-	}
-	for {
-		var result string
-		if err := chromedp.Run(tab, chromedp.Evaluate("JSON.stringify("+pageScript+")", &result)); err == nil && result != "" && result != "[]" {
-			return []byte(result), nil
-		}
-		select {
-		case <-tab.Done():
-			return nil, fmt.Errorf("Vueling did not render results before the timeout")
-		case <-time.After(500 * time.Millisecond):
-		}
-	}
 }

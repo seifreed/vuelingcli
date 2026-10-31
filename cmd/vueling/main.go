@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/seifreed/vuelingcli/internal/airports"
+	"github.com/seifreed/vuelingcli/internal/browser"
 	"github.com/seifreed/vuelingcli/internal/search"
 	"github.com/seifreed/vuelingcli/internal/vueling"
 	toon "github.com/toon-format/toon-go"
@@ -218,7 +219,8 @@ func flights(args []string) error {
 	if err != nil {
 		return err
 	}
-	flights, err := vueling.FlightsFromBrowser(context.Background(), values["cdp-url"], searchURL, date.Format(time.DateOnly), returnDate.Format(time.DateOnly))
+	reader := browser.NewChromeReader(values["cdp-url"])
+	flights, err := vueling.FlightsFromPage(context.Background(), reader, searchURL, date.Format(time.DateOnly), returnDate.Format(time.DateOnly))
 	if err != nil {
 		return err
 	}
@@ -226,7 +228,7 @@ func flights(args []string) error {
 	result := map[string]any{"url": searchURL, "flights": flights}
 	var outboundNearby, returnNearby *vueling.CalendarDay
 	if nearby {
-		outboundNearby, returnNearby = nearbyFares(values["cdp-url"], origin, destination, date, returnDate)
+		outboundNearby, returnNearby = nearbyFares(reader, origin, destination, date, returnDate)
 		if outboundNearby != nil {
 			result["nearby"] = outboundNearby
 		}
@@ -274,7 +276,7 @@ func connectionSummary(flight vueling.Flight) string {
 
 // nearbyFares reads the cheapest calendar day of the outbound and return months,
 // warning on stderr instead of failing because the flight offers are the primary output.
-func nearbyFares(endpoint, origin, destination string, date, returnDate time.Time) (*vueling.CalendarDay, *vueling.CalendarDay) {
+func nearbyFares(reader vueling.PageReader, origin, destination string, date, returnDate time.Time) (*vueling.CalendarDay, *vueling.CalendarDay) {
 	link, err := vueling.CalendarURL(origin, destination, date)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "flights: warning: nearby fares unavailable: %v\n", err)
@@ -284,7 +286,7 @@ func nearbyFares(endpoint, origin, destination string, date, returnDate time.Tim
 	if !returnDate.IsZero() {
 		returnValue = returnDate.Format("02/01/2006")
 	}
-	calendar, err := vueling.CalendarMonthFromBrowser(context.Background(), endpoint, link, returnValue)
+	calendar, err := vueling.CalendarMonthFromPage(context.Background(), reader, link, returnValue)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "flights: warning: nearby fares unavailable: %v\n", err)
 		return nil, nil
@@ -375,12 +377,13 @@ func flightStatus(args []string) error {
 	if err != nil {
 		return fmt.Errorf("invalid --date: %w", err)
 	}
+	reader := browser.NewChromeReader(endpoint)
 	if watch > 0 {
 		return watchFlightStatus(time.Duration(watch)*time.Minute, format == "json", func(ctx context.Context) ([]vueling.FlightStatus, error) {
-			return vueling.FlightStatusFromBrowser(ctx, endpoint, flight, origin, destination, date)
+			return vueling.FlightStatusFromPage(ctx, reader, flight, origin, destination, date)
 		})
 	}
-	statuses, err := vueling.FlightStatusFromBrowser(context.Background(), endpoint, flight, origin, destination, date)
+	statuses, err := vueling.FlightStatusFromPage(context.Background(), reader, flight, origin, destination, date)
 	if err != nil {
 		return err
 	}
@@ -727,11 +730,12 @@ func calendar(args []string) error {
 	if err != nil {
 		return err
 	}
+	reader := browser.NewChromeReader("")
 	if month {
-		return calendarMonth(link, returnDate, format)
+		return calendarMonth(reader, link, returnDate, format)
 	}
 	if prices {
-		price, err := vueling.CalendarPricesFromBrowser(context.Background(), "", link, returnDate)
+		price, err := vueling.CalendarPricesFromPage(context.Background(), reader, link, returnDate)
 		if err != nil {
 			return err
 		}
@@ -760,8 +764,8 @@ func calendar(args []string) error {
 	return nil
 }
 
-func calendarMonth(link, returnDate, format string) error {
-	calendar, err := vueling.CalendarMonthFromBrowser(context.Background(), "", link, returnDate)
+func calendarMonth(reader vueling.PageReader, link, returnDate, format string) error {
+	calendar, err := vueling.CalendarMonthFromPage(context.Background(), reader, link, returnDate)
 	if err != nil {
 		return err
 	}

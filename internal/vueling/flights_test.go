@@ -1,10 +1,38 @@
 package vueling
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+type testPageReader struct {
+	pageURL string
+	script  string
+	output  []byte
+	err     error
+}
+
+func (reader *testPageReader) ReadPage(_ context.Context, pageURL, script string) ([]byte, error) {
+	reader.pageURL, reader.script = pageURL, script
+	return reader.output, reader.err
+}
+
+func TestFlightsFromPageUsesInjectedReader(t *testing.T) {
+	reader := &testPageReader{output: []byte(`[{"direction":"outbound","label":"Seleccionar vuelo por 49 €","details":"07:15 BCN VY1234 Vueling 09:05 AGP"}]`)}
+	flights, err := FlightsFromPage(context.Background(), reader, "https://example.test/search", "2027-02-03", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reader.pageURL != "https://example.test/search" || !strings.Contains(reader.script, "seleccionar vuelo por") {
+		t.Fatalf("reader request = (%q, %q), want search URL and rendered flight script", reader.pageURL, reader.script)
+	}
+	want := Flight{Direction: "outbound", Date: "2027-02-03", Flight: "VY1234", Departure: "07:15", Arrival: "09:05", Fare: "49", Currency: "EUR", Itinerary: "07:15 BCN VY1234 Vueling 09:05 AGP", Flights: []string{"VY1234"}}
+	if !reflect.DeepEqual(flights, []Flight{want}) {
+		t.Fatalf("FlightsFromPage = %+v, want %+v", flights, []Flight{want})
+	}
+}
 
 func TestParseRenderedFlight(t *testing.T) {
 	for _, tc := range []struct {
@@ -97,28 +125,5 @@ func TestDecodeCalendarErrors(t *testing.T) {
 				t.Fatalf("decodeCalendar(%s) error = %v, want it to contain %q", tc.output, err, tc.want)
 			}
 		})
-	}
-}
-
-func TestValidateDevToolsEndpoint(t *testing.T) {
-	for _, tc := range []struct {
-		endpoint string
-		ok       bool
-	}{
-		{"http://127.0.0.1:9222", true},
-		{"http://localhost:9222", true},
-		{"http://[::1]:9222", true},
-		{"https://127.0.0.1:9222", false},
-		{"http://192.168.1.10:9222", false},
-		{"http://example.com:9222", false},
-		{"http://user:pass@127.0.0.1:9222", false},
-		{"http://", false},
-		{"127.0.0.1:9222", false},
-		{"", false},
-	} {
-		err := validateDevToolsEndpoint(tc.endpoint)
-		if (err == nil) != tc.ok {
-			t.Errorf("validateDevToolsEndpoint(%q) error = %v, want ok=%v", tc.endpoint, err, tc.ok)
-		}
 	}
 }
