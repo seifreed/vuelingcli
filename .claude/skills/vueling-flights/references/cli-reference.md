@@ -50,10 +50,10 @@ Discount types: `0` none, `1` island/Ceuta resident, `2` large family, `3` speci
 ### `vueling calendar`
 
 ```text
-vueling calendar <origin city-or-IATA> <destination city-or-IATA> --date <date> [--open] [--json|--toon]
+vueling calendar <origin city-or-IATA> <destination city-or-IATA> --date <date> [--prices] [--open] [--json|--toon]
 ```
 
-Builds a URL for Vueling's public price calendar. It accepts IATA codes or unambiguous city names from the bundled catalogue (quote multi-word names), plus departure date, browser-open, and output-format options; it does not query prices itself.
+Builds a URL for Vueling's public price calendar. With `--prices`, reads the requested outbound date's fare from the rendered calendar in the current Chrome profile (macOS) or local DevTools session. Structured output contains `route`, `date`, `fare`, and `url`. The returned `fare` is Vueling's displayed calendar fare, not a final booking quote.
 
 ### `vueling flights`
 

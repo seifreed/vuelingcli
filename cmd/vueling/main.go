@@ -387,17 +387,19 @@ func openURL(link string) error {
 
 func calendar(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Build a Vueling price-calendar link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--open] [--json|--toon]\n")
+		fmt.Print("Read a Vueling calendar price or build its link\n\nUsage:\n  vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--prices] [--open] [--json|--toon]\n")
 		return nil
 	}
 	var positional []string
 	dateValue, format := "", ""
-	open := false
+	open, prices := false, false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
 		case a == "--open":
 			open = true
+		case a == "--prices":
+			prices = true
 		case a == "--date":
 			i++
 			if i == len(args) {
@@ -418,7 +420,7 @@ func calendar(args []string) error {
 		}
 	}
 	if len(positional) != 2 || dateValue == "" {
-		return fmt.Errorf("usage: vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--open] [--json|--toon]")
+		return fmt.Errorf("usage: vueling calendar <origin city or IATA> <destination city or IATA> --date <date> [--prices] [--open] [--json|--toon]")
 	}
 	origin, err := resolveAirport(positional[0])
 	if err != nil {
@@ -435,6 +437,21 @@ func calendar(args []string) error {
 	link, err := vueling.CalendarURL(origin, destination, date)
 	if err != nil {
 		return err
+	}
+	if prices {
+		price, err := vueling.CalendarPricesFromBrowser(context.Background(), "", link)
+		if err != nil {
+			return err
+		}
+		price["url"] = link
+		if format == "json" {
+			return json.NewEncoder(os.Stdout).Encode(price)
+		}
+		if format == "toon" {
+			return writeTOON(price)
+		}
+		fmt.Printf("%s %s: %s\n", price["route"], date.Format("02/01/2006"), price["fare"])
+		return nil
 	}
 	if open {
 		if err := openURL(link); err != nil {

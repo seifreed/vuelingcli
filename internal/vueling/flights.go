@@ -70,6 +70,55 @@ const renderedFlightsScript = `(() => {
     });
 })()`
 
+const renderedPriceScript = `(() => {
+  const day = new URL(location.href).searchParams.get('dateComplete')?.slice(0, 2);
+  const offer = [...document.querySelectorAll('button')].find(b => new RegExp('^' + Number(day) + '\\s').test((b.innerText || '').trim()) && /(?:€|EUR|£|USD|\\$)/.test(b.innerText || ''));
+  const route = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^IDA:/i.test(t));
+  const fare = offer?.innerText.match(/[0-9]+(?:[.,][0-9]{1,2})?\s*(?:EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\$)/i)?.[0];
+  return fare && route ? {route, date: new URL(location.href).searchParams.get('dateComplete'), fare: fare.trim()} : [];
+})()`
+
+// CalendarPricesFromBrowser reads the requested outbound fare from the public rendered calendar.
+func CalendarPricesFromBrowser(ctx context.Context, endpoint, calendarURL string) (map[string]string, error) {
+	if _, err := url.ParseRequestURI(calendarURL); err != nil {
+		return nil, fmt.Errorf("invalid Vueling calendar URL: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	if endpoint == "" && runtime.GOOS == "darwin" {
+		output, err := readPageWithAppleEvents(ctx, calendarURL, renderedPriceScript)
+		if err != nil {
+			return nil, err
+		}
+		var price map[string]string
+		if err := json.Unmarshal(output, &price); err != nil || len(price) == 0 {
+			return nil, fmt.Errorf("Vueling did not render the requested calendar price")
+		}
+		return price, nil
+	}
+	if endpoint == "" {
+		endpoint = "http://127.0.0.1:9222"
+	}
+	if err := validateDevToolsEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+	if err := checkDevToolsEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+	allocator, stopAllocator := chromedp.NewRemoteAllocator(ctx, endpoint)
+	defer stopAllocator()
+	tab, stopTab := chromedp.NewContext(allocator)
+	defer stopTab()
+	var price map[string]string
+	if err := chromedp.Run(tab, chromedp.Navigate(calendarURL), chromedp.Sleep(5*time.Second), chromedp.Evaluate(renderedPriceScript, &price)); err != nil {
+		return nil, fmt.Errorf("read Vueling calendar in Chrome: %w", err)
+	}
+	if len(price) == 0 {
+		return nil, fmt.Errorf("Vueling did not render the requested calendar price")
+	}
+	return price, nil
+}
+
 // FlightsFromBrowser reads only visible result-card text from Chrome. It never
 // reads cookies, storage, request headers, or tokens.
 func FlightsFromBrowser(ctx context.Context, endpoint, searchURL, outboundDate, returnDate string) ([]Flight, error) {
@@ -81,7 +130,7 @@ func FlightsFromBrowser(ctx context.Context, endpoint, searchURL, outboundDate, 
 	defer cancel()
 	var cards []renderedFlight
 	if endpoint == "" && runtime.GOOS == "darwin" {
-		output, err := readFlightsWithAppleEvents(ctx, searchURL)
+		output, err := readPageWithAppleEvents(ctx, searchURL, renderedFlightsScript)
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +189,7 @@ func FlightsFromBrowser(ctx context.Context, endpoint, searchURL, outboundDate, 
 	return flights, nil
 }
 
-func readFlightsWithAppleEvents(ctx context.Context, searchURL string) ([]byte, error) {
+func readPageWithAppleEvents(ctx context.Context, searchURL, pageScript string) ([]byte, error) {
 	const script = `on run argv
 	set searchURL to item 1 of argv
 	set pageScript to item 2 of argv
@@ -159,7 +208,7 @@ func readFlightsWithAppleEvents(ctx context.Context, searchURL string) ([]byte, 
 		error "VUELING_NO_OFFERS"
 	end tell
 end run`
-	cmd := exec.CommandContext(ctx, "osascript", "-e", script, searchURL, renderedFlightsScript)
+	cmd := exec.CommandContext(ctx, "osascript", "-e", script, searchURL, pageScript)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		message := strings.ToLower(string(output))
@@ -167,7 +216,7 @@ end run`
 			return nil, fmt.Errorf("Chrome blocks JavaScript from Apple Events; enable View > Developer > Allow JavaScript from Apple Events, then retry")
 		}
 		if strings.Contains(message, "vueling_no_offers") {
-			return nil, fmt.Errorf("Vueling did not render flight offers; the session may need attention or Vueling may be temporarily unavailable")
+			return nil, fmt.Errorf("Vueling did not render results; the session may need attention or Vueling may be temporarily unavailable")
 		}
 		return nil, fmt.Errorf("could not read the Vueling tab through Chrome Apple Events: %w", err)
 	}
