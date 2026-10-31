@@ -13,7 +13,7 @@ import (
 
 func (cli *CLI) flights(args []string) error {
 	if isHelp(args) {
-		if _, err := fmt.Fprint(cli.stdout, "Read live flight offers from your Chrome session\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--cdp-url http://127.0.0.1:9222] [--cheapest] [--direct] [--after HH:MM] [--before HH:MM] [--return-after HH:MM] [--return-before HH:MM] [--limit N] [--nearby] [--json|--toon]\n\nFilters, sorting, and limits apply to outbound and return offers independently. --after and --before are inclusive departure times; --return-after and --return-before replace them for return offers. --nearby also reads the price calendar and reports the cheapest day of the outbound (and return) month.\n\nOn macOS, enable View > Developer > Allow JavaScript from Apple Events in Chrome. Other systems need a local Chrome DevTools endpoint. This command reads rendered offers only; it never selects a fare.\n"); err != nil {
+		if _, err := fmt.Fprint(cli.stdout, "Read every Vueling flight offer for a day\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--browser] [--cdp-url http://127.0.0.1:9222] [--cheapest] [--direct] [--after HH:MM] [--before HH:MM] [--return-after HH:MM] [--return-before HH:MM] [--limit N] [--nearby] [--json|--toon]\n\nFilters, sorting, and limits apply to outbound and return offers independently. --after and --before are inclusive departure times; --return-after and --return-before replace them for return offers. --nearby also reads the price calendar and reports the cheapest day of the outbound (and return) month.\n\nOffers come from Vueling's availability API over HTTPS, using the anonymous session every visitor of tickets.vueling.com gets; no account or cookies are involved. Each fare is the cheapest price for one adult; infants do not change it.\n\n--browser reads the offers rendered in your Chrome session instead. On macOS, enable View > Developer > Allow JavaScript from Apple Events in Chrome. Other systems need a local Chrome DevTools endpoint (--cdp-url). This command never selects a fare.\n"); err != nil {
 			return err
 		}
 		return nil
@@ -27,7 +27,7 @@ func (cli *CLI) flights(args []string) error {
 		return err
 	}
 	reader := cli.newReader(options.endpoint)
-	flights, err := web.FlightsFromPage(context.Background(), reader, searchURL, options.date.Format(time.DateOnly), options.returnDate.Format(time.DateOnly))
+	flights, err := cli.readFlights(reader, searchURL, options)
 	if err != nil {
 		return err
 	}
