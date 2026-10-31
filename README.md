@@ -25,6 +25,6 @@ go run ./cmd/vueling calendar BCN MLA --date 14/01/2027
 
 ## Skill para agentes
 
-`.claude/skills/vueling-flights/` documenta cómo buscar en el navegador y usar la CLI para generar enlaces.
+`.claude/skills/vueling-flights/` documenta cómo buscar en el navegador y usar la CLI para generar enlaces. La [referencia de CLI](.claude/skills/vueling-flights/references/cli-reference.md) lista cada opción, formato de fecha y esquema de salida.
 
 Sin afiliación con Vueling ni respaldo por su parte.
