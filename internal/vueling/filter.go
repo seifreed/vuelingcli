@@ -23,7 +23,10 @@ type FlightFilter struct {
 
 // Vueling cards say "Directo" for nonstop flights; connections mention a stop
 // ("escala", "conexión") or list more than one VY flight number.
-var stopPattern = regexp.MustCompile(`(?i)\b(escalas?|conexi[oó]n|stops?|connection)\b`)
+var (
+	stopPattern       = regexp.MustCompile(`(?i)\b(escalas?|conexi[oó]n|stops?|connection)\b`)
+	connectionPattern = regexp.MustCompile(`(?i)\bconexi[oó]n en ([A-Z]{3})\b`)
+)
 
 // ParseClock validates an HH:MM time and returns minutes after midnight.
 func ParseClock(value string) (int, error) {
@@ -102,9 +105,37 @@ func keepFlight(flight Flight, f FlightFilter) bool {
 }
 
 func isDirect(flight Flight) bool {
-	numbers := map[string]bool{flight.Flight: true}
-	for _, number := range flightNumberPattern.FindAllString(flight.Itinerary, -1) {
-		numbers[number] = true
+	return readLegs(flight.Flight, flight.Itinerary).stops == 0
+}
+
+type legs struct {
+	stops   int
+	flights []string
+	via     []string
+}
+
+// readLegs derives the connection legs that the rendered card text names: every
+// VY flight number in order, the "Conexión en XXX" airports, and the stop count.
+func readLegs(flightNumber, itinerary string) legs {
+	flights := uniqueInOrder(append([]string{flightNumber}, flightNumberPattern.FindAllString(itinerary, -1)...))
+	var airports []string
+	for _, match := range connectionPattern.FindAllStringSubmatch(itinerary, -1) {
+		airports = append(airports, match[1])
 	}
-	return len(numbers) == 1 && !stopPattern.MatchString(flight.Itinerary)
+	via := uniqueInOrder(airports)
+	stops := max(len(flights)-1, len(via))
+	if stops == 0 && stopPattern.MatchString(itinerary) {
+		stops = 1
+	}
+	return legs{stops: stops, flights: flights, via: via}
+}
+
+func uniqueInOrder(values []string) []string {
+	var unique []string
+	for _, value := range values {
+		if value != "" && !slices.Contains(unique, value) {
+			unique = append(unique, value)
+		}
+	}
+	return unique
 }
