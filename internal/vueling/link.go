@@ -26,7 +26,7 @@ func FlightURL(o LinkOptions) (string, error) {
 	if !IsIATACode(o.Origin) || !IsIATACode(o.Destination) || o.Origin == o.Destination || o.Date.IsZero() {
 		return "", fmt.Errorf("different IATA codes and a departure date are required")
 	}
-	if o.Adults < 1 || o.Children < 0 || o.Infants < 0 || o.Infants > o.Adults || o.Adults+o.Children+o.Infants > 9 {
+	if o.Adults < 1 || o.Adults > 9 || o.Children < 0 || o.Children > 9-o.Adults || o.Infants < 0 || o.Infants > o.Adults || o.Infants > 9-o.Adults-o.Children {
 		return "", fmt.Errorf("passengers must total 1–9, with at least one adult and no more infants than adults")
 	}
 	if !o.ReturnDate.IsZero() && o.ReturnDate.Before(o.Date) {

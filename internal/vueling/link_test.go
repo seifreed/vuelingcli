@@ -70,6 +70,7 @@ func TestFlightURLRejectsInvalidCoreParameters(t *testing.T) {
 		"no adults":                func(o *LinkOptions) { o.Adults = 0 },
 		"more infants than adults": func(o *LinkOptions) { o.Infants = 2 },
 		"ten passengers":           func(o *LinkOptions) { o.Adults, o.Children = 5, 5 },
+		"passenger count overflow": func(o *LinkOptions) { o.Children = int(^uint(0) >> 1) },
 		"return before departure":  func(o *LinkOptions) { o.ReturnDate = o.Date.AddDate(0, 0, -1) },
 		"discount above five":      func(o *LinkOptions) { o.Discount = 6 },
 		"flight number too long":   func(o *LinkOptions) { o.OutboundFlight = "VY12345" },
