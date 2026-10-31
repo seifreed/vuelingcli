@@ -29,6 +29,7 @@ var catalogue = []Airport{
 	{"NTE", "Nantes"}, {"NAP", "Nápoles"}, {"NCE", "Niza"}, {"NUE", "Núremberg"},
 	{"OLB", "Olbia"}, {"OSL", "Oslo"}, {"PMO", "Palermo"}, {"PRG", "Praga"},
 	{"KEF", "Reikiavik"}, {"RMI", "Rímini"}, {"JTR", "Santorini"}, {"SPU", "Split"}, {"PDL", "Ponta Delgada"}, {"PNA", "Pamplona"}, {"REU", "Reus"},
+	{"CDT", "Castellón"}, {"CFU", "Corfú"}, {"CIY", "Comiso"}, {"TIA", "Tirana"},
 	{"ARN", "Estocolmo"}, {"CWL", "Cardiff"}, {"SXB", "Estrasburgo"}, {"STR", "Stuttgart"}, {"TNG", "Tánger"}, {"TUN", "Túnez"},
 	{"TRN", "Turín"}, {"TLS", "Toulouse"}, {"VCE", "Venecia"}, {"VIE", "Viena"},
 }
@@ -39,6 +40,7 @@ var aliases = map[string][]string{
 	"FCO": {"Rome", "Rome Fiumicino"}, "MXP": {"Milan", "Milan Malpensa"},
 	"BSL": {"Basel"}, "LJU": {"Ljubljana"},
 	"LGW": {"London", "London Gatwick"}, "BRU": {"Brussels"},
+	"CFU": {"Corfu"}, "TIA": {"Tirane"},
 	"LIS": {"Lisbon"}, "OPO": {"Porto"}, "FRA": {"Frankfurt"}, "MUC": {"Munich"},
 	"LCG": {"La Coruna"}, "MAH": {"Minorca"}, "PMI": {"Mallorca"},
 	"ALG": {"Algiers"}, "ATH": {"Athens"}, "BLQ": {"Bologna"}, "BOD": {"Bordeaux"},
