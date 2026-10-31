@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -26,7 +28,7 @@ func main() {
 		fmt.Printf("vueling %s\n", version)
 	case "search":
 		if len(os.Args) > 2 && (os.Args[2] == "--help" || os.Args[2] == "-h") {
-			fmt.Print("Build an official Vueling flight-search link. Live prices are shown on Vueling's website.\n\nUsage:\n  vueling search <origin> <destination> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--json|--toon]\n")
+			fmt.Print("Build an official Vueling flight-search link. Live prices are shown on Vueling's website.\n\nUsage:\n  vueling search <origin> <destination> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--open] [--json|--toon]\n")
 			return
 		}
 		if err := flightLink(os.Args[2:]); err != nil {
@@ -96,14 +98,19 @@ func airportSearch(args []string) error {
 
 func flightLink(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Build a Vueling flight-selection link\n\nUsage:\n  vueling link <origin> <destination> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--json|--toon]\n")
+		fmt.Print("Build a Vueling flight-selection link\n\nUsage:\n  vueling link <origin> <destination> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--open] [--json|--toon]\n")
 		return nil
 	}
 	values := map[string]string{}
 	var positional []string
 	format := ""
+	open := false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
+		if a == "--open" {
+			open = true
+			continue
+		}
 		if a == "--json" || a == "--toon" {
 			if format != "" {
 				return fmt.Errorf("--json and --toon cannot be used together")
@@ -173,6 +180,11 @@ func flightLink(args []string) error {
 	if err != nil {
 		return err
 	}
+	if open {
+		if err := openURL(link); err != nil {
+			return fmt.Errorf("open flight link: %w", err)
+		}
+	}
 	if format == "json" {
 		return json.NewEncoder(os.Stdout).Encode(map[string]string{"url": link})
 	}
@@ -181,6 +193,24 @@ func flightLink(args []string) error {
 	}
 	fmt.Println(link)
 	return nil
+}
+
+func openURL(link string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", link)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", link)
+	case "linux":
+		cmd = exec.Command("xdg-open", link)
+	default:
+		return fmt.Errorf("opening links is not supported on %s", runtime.GOOS)
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
 }
 
 func calendar(args []string) error {
