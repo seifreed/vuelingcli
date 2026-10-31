@@ -15,6 +15,9 @@ type FlightFilter struct {
 	Limit    int
 	After    string
 	Before   string
+	// ReturnAfter and ReturnBefore replace After and Before for return offers when either is set.
+	ReturnAfter  string
+	ReturnBefore string
 }
 
 // Vueling cards say "Directo" for nonstop flights; connections mention a stop
@@ -42,9 +45,13 @@ func FilterFlights(flights []Flight, f FlightFilter) []Flight {
 	}
 	result := []Flight{}
 	for _, direction := range directions {
+		window := f
+		if direction == "return" && (f.ReturnAfter != "" || f.ReturnBefore != "") {
+			window.After, window.Before = f.ReturnAfter, f.ReturnBefore
+		}
 		var kept []Flight
 		for _, flight := range groups[direction] {
-			if keepFlight(flight, f) {
+			if keepFlight(flight, window) {
 				kept = append(kept, flight)
 			}
 		}

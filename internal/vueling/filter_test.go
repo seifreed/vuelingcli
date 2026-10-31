@@ -27,6 +27,7 @@ func TestFilterFlights(t *testing.T) {
 		{"after inclusive", FlightFilter{After: "09:15"}, []string{"VY1001", "VY1003", "VY1004", "VY2000", "VY2001"}},
 		{"before inclusive", FlightFilter{Before: "07:05"}, []string{"VY1000", "VY1002"}},
 		{"window", FlightFilter{After: "07:00", Before: "18:00"}, []string{"VY1001", "VY1002", "VY1003", "VY2000", "VY2001"}},
+		{"return window", FlightFilter{After: "09:15", ReturnBefore: "11:00"}, []string{"VY1001", "VY1003", "VY1004", "VY2000"}},
 		{"direct", FlightFilter{Direct: true}, []string{"VY1000", "VY1002", "VY1004", "VY2000", "VY2001"}},
 		{"direct cheapest window", FlightFilter{Direct: true, Cheapest: true, After: "07:00"}, []string{"VY1004", "VY1002", "VY2001", "VY2000"}},
 	}

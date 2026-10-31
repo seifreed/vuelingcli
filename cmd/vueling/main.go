@@ -78,7 +78,7 @@ func main() {
 
 func flights(args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Print("Read live flight offers from your Chrome session\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--cdp-url http://127.0.0.1:9222] [--cheapest] [--direct] [--after HH:MM] [--before HH:MM] [--limit N] [--nearby] [--json|--toon]\n\nFilters, sorting, and limits apply to outbound and return offers independently. --after and --before are inclusive departure times. --nearby also reads the price calendar and reports the cheapest day of the outbound (and return) month.\n\nOn macOS, enable View > Developer > Allow JavaScript from Apple Events in Chrome. Other systems need a local Chrome DevTools endpoint. This command reads rendered offers only; it never selects a fare.\n")
+		fmt.Print("Read live flight offers from your Chrome session\n\nUsage:\n  vueling flights <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--currency code] [--cdp-url http://127.0.0.1:9222] [--cheapest] [--direct] [--after HH:MM] [--before HH:MM] [--return-after HH:MM] [--return-before HH:MM] [--limit N] [--nearby] [--json|--toon]\n\nFilters, sorting, and limits apply to outbound and return offers independently. --after and --before are inclusive departure times; --return-after and --return-before replace them for return offers. --nearby also reads the price calendar and reports the cheapest day of the outbound (and return) month.\n\nOn macOS, enable View > Developer > Allow JavaScript from Apple Events in Chrome. Other systems need a local Chrome DevTools endpoint. This command reads rendered offers only; it never selects a fare.\n")
 		return nil
 	}
 	values := map[string]string{}
@@ -114,7 +114,7 @@ func flights(args []string) error {
 				v = args[i]
 			}
 			switch k {
-			case "date", "return", "adults", "children", "infants", "currency", "cdp-url", "after", "before", "limit":
+			case "date", "return", "adults", "children", "infants", "currency", "cdp-url", "after", "before", "return-after", "return-before", "limit":
 				values[k] = v
 			default:
 				return fmt.Errorf("unknown option --%s", k)
@@ -193,7 +193,22 @@ func flights(args []string) error {
 	if afterMinutes > beforeMinutes {
 		return fmt.Errorf("--after must not be later than --before")
 	}
+	returnAfterMinutes, err := clock("return-after", 0)
+	if err != nil {
+		return err
+	}
+	returnBeforeMinutes, err := clock("return-before", 24*60)
+	if err != nil {
+		return err
+	}
+	if returnAfterMinutes > returnBeforeMinutes {
+		return fmt.Errorf("--return-after must not be later than --return-before")
+	}
+	if (values["return-after"] != "" || values["return-before"] != "") && values["return"] == "" {
+		return fmt.Errorf("--return-after and --return-before need --return")
+	}
 	filter.After, filter.Before = values["after"], values["before"]
+	filter.ReturnAfter, filter.ReturnBefore = values["return-after"], values["return-before"]
 	currency := strings.ToUpper(values["currency"])
 	if currency == "" {
 		currency = "EUR"
