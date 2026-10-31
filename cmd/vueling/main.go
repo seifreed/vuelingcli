@@ -25,7 +25,10 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "version", "--version", "-v":
-		fmt.Printf("vueling %s\n", version)
+		if err := showVersion(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "version: %v\n", err)
+			os.Exit(2)
+		}
 	case "search":
 		if len(os.Args) > 2 && (os.Args[2] == "--help" || os.Args[2] == "-h") {
 			fmt.Print("Build an official Vueling flight-search link. Live prices are shown on Vueling's website.\n\nUsage:\n  vueling search <origin city or IATA> <destination city or IATA> --date <date> [--return <date>] [--adults N] [--children N] [--infants N] [--discount 0-5] [--culture code] [--currency code] [--flight VY1234] [--fare-basis CODE] [--return-flight VY5678] [--return-fare-basis CODE] [--token VALUE] [--open] [--json|--toon]\n")
@@ -57,6 +60,34 @@ func main() {
 	default:
 		fmt.Fprintf(os.Stderr, "vueling: unknown command %q (run 'vueling help')\n", os.Args[1])
 		os.Exit(2)
+	}
+}
+
+func showVersion(args []string) error {
+	format := ""
+	for _, arg := range args {
+		switch arg {
+		case "--help", "-h":
+			fmt.Print("Show the CLI version\n\nUsage:\n  vueling version [--json|--toon]\n")
+			return nil
+		case "--json", "--toon":
+			if format != "" && format != arg[2:] {
+				return fmt.Errorf("--json and --toon cannot be used together")
+			}
+			format = arg[2:]
+		default:
+			return fmt.Errorf("unknown option %s", arg)
+		}
+	}
+	value := map[string]string{"version": version}
+	switch format {
+	case "json":
+		return json.NewEncoder(os.Stdout).Encode(value)
+	case "toon":
+		return writeTOON(value)
+	default:
+		fmt.Printf("vueling %s\n", version)
+		return nil
 	}
 }
 

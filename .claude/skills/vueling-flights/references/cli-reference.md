@@ -64,11 +64,11 @@ Searches a local snapshot based on [Vueling's airport-help pages](https://help.v
 
 ### `vueling version` and help
 
-`vueling version` (also `--version` or `-v`) prints the CLI version. `vueling help`, `--help`, or `-h` prints command names. Use `vueling search --help`, `vueling link --help`, `vueling calendar --help`, or `vueling airports --help` for command usage.
+`vueling version` (also `--version` or `-v`) prints the CLI version. Add `--json` or `--toon` for structured output. `vueling help`, `--help`, or `-h` prints command names. Use `vueling version --help`, `vueling search --help`, `vueling link --help`, `vueling calendar --help`, or `vueling airports --help` for command usage.
 
 ## Structured output
 
-`search`, `link`, and `calendar` return a JSON object with one `url` field, or the same data in TOON format:
+`search`, `link`, and `calendar` return a JSON object with one `url` field; `version` returns a `version` field. Both use the same shape in TOON format:
 
 ```json
 {"url":"https://tickets.vueling.com/booking?..."}

@@ -19,4 +19,4 @@ Use Vueling's site in the browser for live flight results. Use `vueling` to buil
 
 ## Commands
 
-For complete command syntax, option meanings, date formats, and output schemas, read [the CLI reference](references/cli-reference.md). Quick examples: `vueling calendar Barcelona "Palma de Mallorca" --date tomorrow --open`, `vueling search BCN AGP --date +7 --adults 2 --json`, and `vueling airports paris --toon`. Quote multi-word city names; ambiguous cities must be passed by IATA code. The CLI creates URLs and does not fetch or rank live fares.
+For complete command syntax, option meanings, date formats, and output schemas, read [the CLI reference](references/cli-reference.md). Quick examples: `vueling calendar Barcelona "Palma de Mallorca" --date tomorrow --open`, `vueling search BCN AGP --date +7 --adults 2 --json`, `vueling airports paris --toon`, and `vueling version --json`. Quote multi-word city names; ambiguous cities must be passed by IATA code. The CLI creates URLs and does not fetch or rank live fares.
