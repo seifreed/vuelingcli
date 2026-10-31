@@ -50,10 +50,10 @@ Discount types: `0` none, `1` island/Ceuta resident, `2` large family, `3` speci
 ### `vueling calendar`
 
 ```text
-vueling calendar <origin city-or-IATA> <destination city-or-IATA> --date <date> [--return <date>] [--prices] [--open] [--json|--toon]
+vueling calendar <origin city-or-IATA> <destination city-or-IATA> --date <date> [--return <date>] [--prices [--month]] [--open] [--json|--toon]
 ```
 
-Builds a URL for Vueling's public price calendar. With `--prices`, reads the requested outbound date's fare and, when `--return` is supplied, the return fare from the rendered calendar in the current Chrome profile (macOS) or local DevTools session. It can switch among the return calendar's visible month tabs; if the requested month is outside those tabs, it reports that instead of guessing a fare. Calendar price lookup limits return dates to 330 days after departure to avoid confusing the same month in another year. Structured output contains `route`, `date`, `fare`, `returnRoute`, `returnDate`, `returnFare`, and `url`; return fields are empty when no return date is requested. Calendar fares are not final booking quotes.
+Builds a URL for Vueling's public price calendar. With `--prices`, reads the requested outbound date's fare and, when `--return` is supplied, the return fare from the rendered calendar in the current Chrome profile (macOS) or local DevTools session. It can switch among the return calendar's visible month tabs; if the requested month is outside those tabs, it reports that instead of guessing a fare. Calendar price lookup limits return dates to 330 days after departure to avoid confusing the same month in another year. Structured output contains `route`, `date`, `fare`, `returnRoute`, `returnDate`, `returnFare`, and `url`; return fields are empty when no return date is requested. Add `--month` (only with `--prices`) to list every visible day fare of the outbound month, and of the return month with `--return`, sorted by date; structured output adds `days` and `cheapest` (each day is `{ "date", "fare" }`, dates as `DD/MM/YYYY`) plus `returnDays` and `returnCheapest` with `--return`, and `fare` is omitted when the requested day has no fare. Text output prints one `DATE: FARE` line per day under each route and marks the lowest with `[cheapest]` (the earliest day on ties). `--month` without `--prices` is a usage error. Calendar fares are not final booking quotes.
 
 ### `vueling flights`
 

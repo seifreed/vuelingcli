@@ -76,6 +76,9 @@ const renderedPriceScript = `(() => {
   const tables = [...document.querySelectorAll('table')];
   const findFare = (table, value) => [...(table?.querySelectorAll('button') || [])].find(b => new RegExp('^' + Number(value) + '\\s').test((b.innerText || '').trim()) && /(?:€|EUR|£|USD|\\$)/.test(b.innerText || ''))?.innerText.match(/[0-9]+(?:[.,][0-9]{1,2})?\s*(?:EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\\$)/i)?.[0]?.trim();
   const fare = findFare(tables[0], day);
+  const month = params.get('vuelingcliMonth') === '1';
+  const dayFares = table => month ? [...(table?.querySelectorAll('button') || [])].map(b => (b.innerText || '').trim()).filter(t => /(?:€|EUR|£|USD|\$)/.test(t)).map(t => ({day: t.match(/^(\d{1,2})\s/)?.[1], fare: t.match(/[0-9]+(?:[.,][0-9]{1,2})?\s*(?:EUR|USD|SEK|NOK|DKK|CHF|GBP|€|£|\$)/i)?.[0]?.trim()})).filter(d => d.day && d.fare) : [];
+  const days = dayFares(tables[0]);
   const returnDate = params.get('vuelingcliReturnDate') || '';
   const monthNames = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const selectedMonths = [...document.querySelectorAll('button[aria-pressed="true"]')];
@@ -90,22 +93,42 @@ const renderedPriceScript = `(() => {
     }
   }
   let returnFare = '';
-  if (returnDate && selectedReturnMonth.startsWith(expectedMonth)) returnFare = findFare(tables[1], returnDate.slice(0, 2));
+  let returnDays = [];
+  if (returnDate && selectedReturnMonth.startsWith(expectedMonth)) {
+    returnFare = findFare(tables[1], returnDate.slice(0, 2));
+    returnDays = dayFares(tables[1]);
+  }
   if (returnDate && !selectedReturnMonth.startsWith(expectedMonth)) return [];
   const route = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^IDA:/i.test(t));
   const returnRoute = document.body.innerText.split('\n').map(t => t.trim()).find(t => /^VUELTA:/i.test(t));
+  if (month) return days.length && route && (!returnDate || returnDays.length) ? {route, date: params.get('dateComplete'), fare, returnRoute, returnDate, returnFare, days, returnDays} : [];
   return fare && route && (!returnDate || returnFare) ? {route, date: params.get('dateComplete'), fare, returnRoute, returnDate, returnFare} : [];
 })()`
 
 // CalendarPricesFromBrowser reads the requested outbound fare from the public rendered calendar.
 func CalendarPricesFromBrowser(ctx context.Context, endpoint, calendarURL, returnDate string) (map[string]string, error) {
+	calendar, err := readCalendar(ctx, endpoint, calendarURL, returnDate, false)
+	return calendar.Price, err
+}
+
+// CalendarMonthFromBrowser also reads every visible day fare of the outbound and return months.
+func CalendarMonthFromBrowser(ctx context.Context, endpoint, calendarURL, returnDate string) (CalendarMonth, error) {
+	return readCalendar(ctx, endpoint, calendarURL, returnDate, true)
+}
+
+func readCalendar(ctx context.Context, endpoint, calendarURL, returnDate string, month bool) (CalendarMonth, error) {
 	if _, err := url.ParseRequestURI(calendarURL); err != nil {
-		return nil, fmt.Errorf("invalid Vueling calendar URL: %w", err)
+		return CalendarMonth{}, fmt.Errorf("invalid Vueling calendar URL: %w", err)
 	}
-	if returnDate != "" {
+	if returnDate != "" || month {
 		u, _ := url.Parse(calendarURL)
 		query := u.Query()
-		query.Set("vuelingcliReturnDate", returnDate)
+		if returnDate != "" {
+			query.Set("vuelingcliReturnDate", returnDate)
+		}
+		if month {
+			query.Set("vuelingcliMonth", "1")
+		}
 		u.RawQuery = query.Encode()
 		calendarURL = u.String()
 	}
@@ -114,41 +137,57 @@ func CalendarPricesFromBrowser(ctx context.Context, endpoint, calendarURL, retur
 	if endpoint == "" && runtime.GOOS == "darwin" {
 		output, err := readPageWithAppleEvents(ctx, calendarURL, renderedPriceScript)
 		if err != nil {
-			return nil, err
+			return CalendarMonth{}, err
 		}
-		var price map[string]string
-		if err := json.Unmarshal(output, &price); err != nil || len(price) == 0 {
-			return nil, fmt.Errorf("Vueling did not render the requested calendar price")
-		}
-		if message := price["error"]; message != "" {
-			return nil, fmt.Errorf("Vueling %s; use `calendar --open` to inspect return months outside the current view", message)
-		}
-		return price, nil
+		return decodeCalendar(output)
 	}
 	if endpoint == "" {
 		endpoint = "http://127.0.0.1:9222"
 	}
 	if err := validateDevToolsEndpoint(endpoint); err != nil {
-		return nil, err
+		return CalendarMonth{}, err
 	}
 	if err := checkDevToolsEndpoint(endpoint); err != nil {
-		return nil, err
+		return CalendarMonth{}, err
 	}
 	allocator, stopAllocator := chromedp.NewRemoteAllocator(ctx, endpoint)
 	defer stopAllocator()
 	tab, stopTab := chromedp.NewContext(allocator)
 	defer stopTab()
-	var price map[string]string
-	if err := chromedp.Run(tab, chromedp.Navigate(calendarURL), chromedp.Sleep(5*time.Second), chromedp.Evaluate(renderedPriceScript, &price)); err != nil {
-		return nil, fmt.Errorf("read Vueling calendar in Chrome: %w", err)
+	var output []byte
+	if err := chromedp.Run(tab, chromedp.Navigate(calendarURL), chromedp.Sleep(5*time.Second), chromedp.Evaluate(renderedPriceScript, &output)); err != nil {
+		return CalendarMonth{}, fmt.Errorf("read Vueling calendar in Chrome: %w", err)
 	}
-	if len(price) == 0 {
-		return nil, fmt.Errorf("Vueling did not render the requested calendar price")
+	return decodeCalendar(output)
+}
+
+func decodeCalendar(output []byte) (CalendarMonth, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(output, &fields); err != nil || len(fields) == 0 {
+		return CalendarMonth{}, fmt.Errorf("Vueling did not render the requested calendar price")
+	}
+	price := map[string]string{}
+	var days, returnDays []renderedDay
+	for key, value := range fields {
+		var err error
+		switch key {
+		case "days":
+			err = json.Unmarshal(value, &days)
+		case "returnDays":
+			err = json.Unmarshal(value, &returnDays)
+		default:
+			var text string
+			err = json.Unmarshal(value, &text)
+			price[key] = text
+		}
+		if err != nil {
+			return CalendarMonth{}, fmt.Errorf("Vueling did not render the requested calendar price")
+		}
 	}
 	if message := price["error"]; message != "" {
-		return nil, fmt.Errorf("Vueling %s; use `calendar --open` to inspect return months outside the current view", message)
+		return CalendarMonth{}, fmt.Errorf("Vueling %s; use `calendar --open` to inspect return months outside the current view", message)
 	}
-	return price, nil
+	return CalendarMonth{Price: price, Days: monthDays(days, price["date"]), ReturnDays: monthDays(returnDays, price["returnDate"])}, nil
 }
 
 // FlightsFromBrowser reads only visible result-card text from Chrome. It never
