@@ -42,8 +42,16 @@ var (
 const renderedFlightsScript = `(() => {
   const headings = [...document.querySelectorAll('h1,h2,h3,h4,[role="heading"]')]
     .filter(e => /^(IDA|VUELTA)\s*:/i.test((e.innerText || '').trim()));
-  return [...document.querySelectorAll('button')]
-    .filter(b => /seleccionar vuelo por/i.test([b.innerText, b.getAttribute('aria-label'), b.textContent].join(' ')))
+  const buttons = [...document.querySelectorAll('button')];
+  const offers = buttons.filter(b => /seleccionar vuelo por/i.test([b.innerText, b.getAttribute('aria-label'), b.textContent].join(' ')));
+  if (offers.length === 0) {
+    const search = buttons.find(b => (b.innerText || '').trim().toUpperCase() === 'BUSCAR');
+    if (search && search.dataset.vuelingcliSubmitted !== '1') {
+      search.dataset.vuelingcliSubmitted = '1';
+      search.click();
+    }
+  }
+  return offers
     .map(b => {
       const heading = headings.filter(h => h.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).pop();
       const label = [b.getAttribute('aria-label'), b.innerText, b.textContent].filter(Boolean).join(' ').trim();
@@ -62,8 +70,8 @@ const renderedFlightsScript = `(() => {
     });
 })()`
 
-// FlightsFromBrowser reads only visible result-card text from a local Chrome
-// DevTools session. It never reads cookies, storage, request headers, or tokens.
+// FlightsFromBrowser reads only visible result-card text from Chrome. It never
+// reads cookies, storage, request headers, or tokens.
 func FlightsFromBrowser(ctx context.Context, endpoint, searchURL, outboundDate, returnDate string) ([]Flight, error) {
 	if _, err := url.ParseRequestURI(searchURL); err != nil {
 		return nil, fmt.Errorf("invalid Vueling search URL: %w", err)
@@ -97,10 +105,15 @@ func FlightsFromBrowser(ctx context.Context, endpoint, searchURL, outboundDate, 
 		if err := chromedp.Run(tab, chromedp.Navigate(searchURL)); err != nil {
 			return nil, fmt.Errorf("open Vueling in Chrome: %w", err)
 		}
-		deadline := time.Now().Add(75 * time.Second)
+		deadline := time.Now().Add(45 * time.Second)
 		for time.Now().Before(deadline) {
 			if err := chromedp.Run(tab, chromedp.Evaluate(renderedFlightsScript, &cards)); err != nil {
-				return nil, fmt.Errorf("read rendered Vueling results: %w", err)
+				select {
+				case <-tab.Done():
+					return nil, fmt.Errorf("Chrome closed before Vueling results loaded")
+				case <-time.After(500 * time.Millisecond):
+					continue
+				}
 			}
 			if len(cards) > 0 {
 				break
@@ -113,7 +126,7 @@ func FlightsFromBrowser(ctx context.Context, endpoint, searchURL, outboundDate, 
 		}
 	}
 	if len(cards) == 0 {
-		return nil, fmt.Errorf("Vueling did not render flight offers; check that the browser session is active and no CAPTCHA is blocking the search")
+		return nil, fmt.Errorf("Vueling did not render flight offers; the session may need attention or Vueling may be temporarily unavailable")
 	}
 
 	flights := make([]Flight, 0, len(cards))
@@ -134,7 +147,7 @@ func readFlightsWithAppleEvents(ctx context.Context, searchURL string) ([]byte, 
 	tell application "Google Chrome"
 		if (count of windows) is 0 then error "VUELING_NO_CHROME_WINDOW"
 		set resultTab to make new tab at end of tabs of front window with properties {URL:searchURL}
-		repeat 150 times
+		repeat 90 times
 			try
 				set resultJSON to execute resultTab javascript ("JSON.stringify(" & pageScript & ")")
 				if resultJSON is not missing value and resultJSON is not "[]" then return resultJSON
@@ -154,7 +167,7 @@ end run`
 			return nil, fmt.Errorf("Chrome blocks JavaScript from Apple Events; enable View > Developer > Allow JavaScript from Apple Events, then retry")
 		}
 		if strings.Contains(message, "vueling_no_offers") {
-			return nil, fmt.Errorf("Vueling did not render flight offers; check the browser session and any CAPTCHA")
+			return nil, fmt.Errorf("Vueling did not render flight offers; the session may need attention or Vueling may be temporarily unavailable")
 		}
 		return nil, fmt.Errorf("could not read the Vueling tab through Chrome Apple Events: %w", err)
 	}
